@@ -9,19 +9,26 @@ import io.vertx.core.Future
 import io.vertx.sqlclient.Pool
 import io.vertx.sqlclient.Tuple
 import java.time.Duration
-import java.time.OffsetDateTime
 import java.util.*
-import kotlin.NoSuchElementException
 import kotlin.io.path.Path
 
 class ItemsService(private val pool: Pool, private val storageService: StorageService, private val fileProcessingService: FileProcessingService) {
     fun getItems(userId: UUID, parentId: UUID?, status: String?) : Future<List<ItemCore>> {
+        if((status == "all" || status == null) && parentId == null) {
+            return pool.preparedQuery("SELECT * FROM items WHERE user_id = $1").execute(Tuple.of(userId)).map { rows ->
+                rows.map { row ->
+                    Item.from(row)
+                }.toList()
+            }
+        }
+
         val statusSQL = when(status) {
             "active" -> "deleted_at IS NULL"
             "deleted" -> "deleted_at IS NOT NULL"
             "all" -> ""
             else -> "deleted_at IS NULL"
         }
+
         if(parentId == null) {
             return pool.preparedQuery("SELECT * FROM items WHERE user_id = $1 AND parent_id IS NULL AND $statusSQL ORDER BY id DESC").execute(Tuple.of(userId)).map { rows ->
                 rows.map { row ->

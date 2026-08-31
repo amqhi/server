@@ -14,7 +14,8 @@ CREATE TYPE "item_type" AS ENUM (
 	'album',
 	'alias',
 	'photo',
-    'link'
+    'link',
+    'theme'
 );
 
 CREATE TYPE "sync_event_type" as ENUM (

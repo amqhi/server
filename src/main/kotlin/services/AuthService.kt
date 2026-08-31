@@ -390,7 +390,7 @@ class AuthService(
     }
 
     // TODO: Replace with Vert.x Google Auth provider
-    fun googleCallback(code: String, state: JsonObject, ipAddress: String?, deviceName: String?, osType: String?): Future<TokenPair> {
+    fun googleCallback(code: String, ipAddress: String?, deviceName: String?, osType: String?): Future<TokenPair> {
 
         val rawFormData =
             """code=${code}&client_id=${googleClientIdWeb}&client_secret=${googleClientSecretWeb}&redirect_uri=http://localhost:8000/auth/google/callback&grant_type=authorization_code"""

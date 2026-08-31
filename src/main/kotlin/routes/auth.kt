@@ -1,6 +1,7 @@
 package com.amqhi.routes
 
 import com.amqhi.common.notFound
+import com.amqhi.common.success
 import com.amqhi.services.AuthService
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.core.http.Cookie
@@ -17,7 +18,6 @@ fun Router.mountAuthRouter(authService: AuthService) {
             email = json.getString("email"),
             password = json.getString("password"),
             deviceName = context.request().getHeader("X-Device-Name"),
-            deviceType = context.request().getHeader("X-Device-Type")?.uppercase(),
             osType = context.request().getHeader("X-Device-OS")?.uppercase(),
             ipAddress = context.request().remoteAddress().hostAddress()
         ).onSuccess { tokenPair ->
@@ -32,10 +32,32 @@ fun Router.mountAuthRouter(authService: AuthService) {
                 )
         }
             .onFailure {
+                it.printStackTrace()
                 // TODO: Handle specific exceptions (e.g., AuthException -> 401, Throwable -> 500)
                 context.response().setStatusCode(401).end("Authentication failed")
             }
     }
+
+    post("/auth/logout").handler { context ->
+        val authHeader: String? = context.request().getHeader("Authorization")
+        val accessToken = authHeader
+            ?.takeIf { it.startsWith("Bearer ") }
+            ?.substringAfter("Bearer ")
+
+        if (accessToken == null) {
+            context.response().setStatusCode(401).end("Unauthorized: No token provided")
+        }
+        else {
+            authService.logout(accessToken).onSuccess {
+                context.success()
+            }
+                .onFailure {
+                    // TODO: Implement onFailure block for POST /auth/logout
+                    context.response().setStatusCode(401).end("OMG")
+                }
+        }
+    }
+
     post("/auth/refresh").handler(BodyHandler.create()).handler { context ->
         val body = context.body().asJsonObject()
         val refreshToken = body.getString("refresh_token")
@@ -61,7 +83,6 @@ fun Router.mountAuthRouter(authService: AuthService) {
         authService.exchangeGoogleToken(
             idToken = idToken,
             deviceName = context.request().getHeader("X-Device-Name"),
-            deviceType = context.request().getHeader("X-Device-Type")?.uppercase(),
             osType = context.request().getHeader("X-Device-OS")?.uppercase(),
             ipAddress = context.request().remoteAddress().hostAddress()
         ).onSuccess { tokenPair ->
@@ -87,9 +108,7 @@ fun Router.mountAuthRouter(authService: AuthService) {
 
             authService.googleCallback(
                 code = code,
-                state = state,
                 deviceName = context.request().getHeader("X-Device-Name"),
-                deviceType = context.request().getHeader("X-Device-Type"),
                 osType = context.request().getHeader("X-Device-OS"),
                 ipAddress = context.request().remoteAddress().hostAddress()
             ).onSuccess { tokenPair ->

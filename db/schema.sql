@@ -35,14 +35,6 @@ CREATE TYPE os_type as ENUM (
     'postmarketos'
 );
 
-CREATE TYPE device_type as ENUM (
-    'phone',
-    'tablet',
-    'laptop',
-    'desktop',
-    'terminal'
-);
-
 CREATE TYPE "app_type" AS ENUM (
 	'cloud',
 	'music',
@@ -191,7 +183,6 @@ CREATE TABLE IF NOT EXISTS "user_devices" (
     "user_id" UUID NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "name" TEXT,
     "os" OS_TYPE,
-    "type" DEVICE_TYPE,
     "bit_mask"     INTEGER NOT NULL,
     "registered_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "last_active_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()

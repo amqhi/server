@@ -13,19 +13,11 @@ enum class OsType {
     POSTMARKETOS;
 }
 
-enum class DeviceType {
-    PHONE,
-    TABLET,
-    DESKTOP,
-    TERMINAL
-}
-
 data class UserDevice(
     val id: UUID,
     val userId: UUID,
     val name: String?,
     val os: OsType?,
-    val type: DeviceType?,
     val bitMask: Int,
     val registeredAt: OffsetDateTime,
     val lastActiveAt: OffsetDateTime

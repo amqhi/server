@@ -3,7 +3,6 @@ package com.amqhi.services
 import com.amqhi.models.AccessToken
 import com.amqhi.models.AuthToken
 import com.amqhi.models.AuthenticatedUser
-import com.amqhi.models.DeviceType
 import com.amqhi.models.LoginType
 import com.amqhi.models.OsType
 import com.amqhi.models.TokenPair
@@ -96,7 +95,7 @@ class AuthService(
         }
     }
 
-    fun login(email: String, password: String, deviceName: String?, ipAddress: String?, deviceType: String?, osType: String?): Future<TokenPair> {
+    fun login(email: String, password: String, deviceName: String?, ipAddress: String?, osType: String?): Future<TokenPair> {
         return pool.preparedQuery(
             """
             SELECT password, id, name FROM "users" WHERE email = $1 AND "login_type" = $2
@@ -122,8 +121,7 @@ class AuthService(
                         generatedUserDevice(
                             userId = userId,
                             name = deviceName,
-                            osType = osType?.let{type -> OsType.valueOf(type)},
-                            type = deviceType?.let{type -> DeviceType.valueOf(type)},
+                            osType = osType?.let{OsType.valueOf(it.uppercase()) },
                         )
                     }
                     .compose { userDevice ->
@@ -145,24 +143,21 @@ class AuthService(
 
     }
 
-//    fun checkPassword(inputPassword: String, storedHash: String): Boolean {
-//        val pepper = System.getenv("AMQHI_PEPPER") ?: "default_secret_pepper"
-//
-//        return Password.check(inputPassword, storedHash)
-//            .addPepper(pepper)
-//            .withArgon2()
-//    }
+    fun logout(accessToken: String): Future<Void> {
+        return jwtAuth.authenticate(TokenCredentials(accessToken)).compose {
+            //val refreshTokenId = UUID.fromString(it.get("jti"))
+            val userId = UUID.fromString(it.get("sub"))
+            val deviceId = UUID.fromString(it.get("device_id"))
+          //  val deviceBitMask = it.get("device_bit_mask")
+            pool.preparedQuery("""
+                DELETE FROM "user_devices" WHERE id = $1 AND user_id = $2
+            """.trimIndent())
+                .execute(Tuple.of(deviceId, userId))
+                .mapEmpty()
+        }
+    }
 
-    //        val argon2: Argon2 = Argon2Factory.create(Argon2Factory.Argon2Types.ARGON2id)
-//
-//        val hashedPassword = argon2.hash(12, 65536, 4, password.toCharArray())
-//        argon2.wipeArray(password.toCharArray())
-//
-//        return pool.preparedQuery("INSERT INTO users (id, name, password) VALUES (?, ?, ?)")
-//            .execute(Tuple.of(id, name, hashedPassword))
-//            .mapEmpty()
-
-    fun generatedUserDevice(userId: UUID, name: String?, osType: OsType?, type: DeviceType?) : Future<UserDevice> {
+    fun generatedUserDevice(userId: UUID, name: String?, osType: OsType?) : Future<UserDevice> {
         return pool.preparedQuery("""
                     WITH next_bit AS (
                     SELECT 
@@ -174,7 +169,6 @@ class AuthService(
                         user_id, 
                         name, 
                         os, 
-                        type, 
                         bit_mask, 
                         registered_at, 
                         last_active_at
@@ -183,7 +177,6 @@ class AuthService(
                         $1,
                         $2,
                         $3,
-                        $4,
                         nb.new_mask,
                         NOW(), 
                         NOW()
@@ -191,7 +184,7 @@ class AuthService(
                     RETURNING *;
         """.trimIndent())
             .execute(
-                Tuple.of(userId, name, osType?.toString()?.lowercase(), type?.toString()?.lowercase())
+                Tuple.of(userId, name, osType?.toString()?.lowercase())
             )
             .map {
                 val row = it.first()
@@ -200,7 +193,6 @@ class AuthService(
                     userId = row.getUUID("user_id"),
                     name = row.getValue("name") as? String,
                     os = (row.getValue("os") as? String)?.let { data -> OsType.valueOf(data.uppercase()) },
-                    type = (row.getValue("type") as? String)?.let { data -> DeviceType.valueOf(data.uppercase()) },
                     bitMask = row.getInteger("bit_mask"),
                     registeredAt = row.getOffsetDateTime("registered_at"),
                     lastActiveAt = row.getOffsetDateTime("last_active_at"),
@@ -353,7 +345,7 @@ class AuthService(
     }
 
 
-    fun exchangeGoogleToken(idToken: String, deviceName: String?, ipAddress: String?, osType: String?, deviceType: String?): Future<TokenPair> {
+    fun exchangeGoogleToken(idToken: String, deviceName: String?, ipAddress: String?, osType: String?): Future<TokenPair> {
         return workerExecutor.executeBlocking {
             googleVerifier.verify(idToken)
         }
@@ -371,7 +363,6 @@ class AuthService(
                     userId = user.id,
                     name = deviceName,
                     osType = osType?.let { OsType.valueOf(it) },
-                    type = deviceType?.let { DeviceType.valueOf(it) },
                 )
                     .compose { device ->
                         generatedRefreshToken(
@@ -399,7 +390,7 @@ class AuthService(
     }
 
     // TODO: Replace with Vert.x Google Auth provider
-    fun googleCallback(code: String, state: JsonObject, ipAddress: String?, deviceName: String?, deviceType: String?, osType: String?): Future<TokenPair> {
+    fun googleCallback(code: String, state: JsonObject, ipAddress: String?, deviceName: String?, osType: String?): Future<TokenPair> {
 
         val rawFormData =
             """code=${code}&client_id=${googleClientIdWeb}&client_secret=${googleClientSecretWeb}&redirect_uri=http://localhost:8000/auth/google/callback&grant_type=authorization_code"""
@@ -432,7 +423,6 @@ class AuthService(
                         userId = user.id,
                         name = deviceName,
                         osType = osType?.let { OsType.valueOf(it) },
-                        type = deviceType?.let { DeviceType.valueOf(it) },
                     )
                         .compose { userDevice ->
                             generatedRefreshToken(user.id, ipAddress, userDevice.id).map { token ->

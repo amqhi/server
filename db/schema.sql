@@ -31,7 +31,7 @@ CREATE TYPE os_type as ENUM (
     'linux',
     'android',
     'ios',
-    'ipados'
+    'ipados',
     'postmarketos'
 );
 

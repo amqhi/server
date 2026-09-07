@@ -216,6 +216,7 @@ CREATE TABLE IF NOT EXISTS "sync_events" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "user_id" UUID NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "item_id" UUID NOT NULL,
+    "item_type" ITEM_TYPE NOT NULL,
     "type" SYNC_EVENT_TYPE NOT NULL,
     "synced_devices"   INTEGER DEFAULT 0,
     "occurred_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),

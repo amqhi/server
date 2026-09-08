@@ -14,7 +14,7 @@ import io.vertx.sqlclient.Row
 import java.time.OffsetDateTime
 import java.util.UUID
 
-enum class ItemType { NOTE, FILE, FOLDER, SONG, ARTIST, ALBUM, ALIAS, UNKNOWN }
+enum class ItemType { NOTE, FILE, FOLDER, SONG, ARTIST, ALBUM, ALIAS, THEME, LINK, UNKNOWN }
 
 interface ItemCore {
     val id: UUID

@@ -24,6 +24,7 @@ data class UserDevice(
     val userId: UUID,
     val name: String?,
     val os: OsType?,
+    val appType: AppType,
     val bitMask: Int,
     val registeredAt: OffsetDateTime,
     val lastActiveAt: OffsetDateTime

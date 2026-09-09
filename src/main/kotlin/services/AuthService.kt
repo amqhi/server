@@ -7,6 +7,7 @@
 package com.amqhi.services
 
 import com.amqhi.models.AccessToken
+import com.amqhi.models.AppType
 import com.amqhi.models.AuthToken
 import com.amqhi.models.AuthenticatedUser
 import com.amqhi.models.LoginType
@@ -101,7 +102,7 @@ class AuthService(
         }
     }
 
-    fun login(email: String, password: String, deviceName: String?, ipAddress: String?, osType: String?): Future<TokenPair> {
+    fun login(email: String, password: String, deviceName: String?, ipAddress: String?, osType: String?, appType: String): Future<TokenPair> {
         return pool.preparedQuery(
             """
             SELECT password, id, name FROM "users" WHERE email = $1 AND "login_type" = $2
@@ -128,6 +129,7 @@ class AuthService(
                             userId = userId,
                             name = deviceName,
                             osType = osType?.let{OsType.valueOf(it.uppercase()) },
+                            appType = AppType.valueOf(appType),
                         )
                     }
                     .compose { userDevice ->
@@ -163,7 +165,7 @@ class AuthService(
         }
     }
 
-    fun generatedUserDevice(userId: UUID, name: String?, osType: OsType?) : Future<UserDevice> {
+    fun generatedUserDevice(userId: UUID, name: String?, osType: OsType?, appType: AppType) : Future<UserDevice> {
         return pool.preparedQuery("""
                     WITH next_bit AS (
                     SELECT 
@@ -175,6 +177,7 @@ class AuthService(
                         user_id, 
                         name, 
                         os, 
+                        app_type,
                         bit_mask, 
                         registered_at, 
                         last_active_at
@@ -183,6 +186,7 @@ class AuthService(
                         $1,
                         $2,
                         $3,
+                        $4,
                         nb.new_mask,
                         NOW(), 
                         NOW()
@@ -190,7 +194,7 @@ class AuthService(
                     RETURNING *;
         """.trimIndent())
             .execute(
-                Tuple.of(userId, name, osType?.toString()?.lowercase())
+                Tuple.of(userId, name, osType?.toString()?.lowercase(), appType.toString().lowercase())
             )
             .map {
                 val row = it.first()
@@ -199,6 +203,7 @@ class AuthService(
                     userId = row.getUUID("user_id"),
                     name = row.getValue("name") as? String,
                     os = (row.getValue("os") as? String)?.let { data -> OsType.valueOf(data.uppercase()) },
+                    appType = AppType.valueOf(row.getString("app_type").uppercase()),
                     bitMask = row.getInteger("bit_mask"),
                     registeredAt = row.getOffsetDateTime("registered_at"),
                     lastActiveAt = row.getOffsetDateTime("last_active_at"),
@@ -351,7 +356,7 @@ class AuthService(
     }
 
 
-    fun exchangeGoogleToken(idToken: String, deviceName: String?, ipAddress: String?, osType: String?): Future<TokenPair> {
+    fun exchangeGoogleToken(idToken: String, deviceName: String?, ipAddress: String?, osType: String?, appType: String): Future<TokenPair> {
         return workerExecutor.executeBlocking {
             googleVerifier.verify(idToken)
         }
@@ -369,6 +374,7 @@ class AuthService(
                     userId = user.id,
                     name = deviceName,
                     osType = osType?.let { OsType.valueOf(it) },
+                    appType = AppType.valueOf(appType)
                 )
                     .compose { device ->
                         generatedRefreshToken(
@@ -396,7 +402,7 @@ class AuthService(
     }
 
     // TODO: Replace with Vert.x Google Auth provider
-    fun googleCallback(code: String, ipAddress: String?, deviceName: String?, osType: String?): Future<TokenPair> {
+    fun googleCallback(code: String, ipAddress: String?, deviceName: String?, osType: String?, appType: String): Future<TokenPair> {
 
         val rawFormData =
             """code=${code}&client_id=${googleClientIdWeb}&client_secret=${googleClientSecretWeb}&redirect_uri=http://localhost:8000/auth/google/callback&grant_type=authorization_code"""
@@ -429,6 +435,7 @@ class AuthService(
                         userId = user.id,
                         name = deviceName,
                         osType = osType?.let { OsType.valueOf(it) },
+                        appType = AppType.valueOf(appType)
                     )
                         .compose { userDevice ->
                             generatedRefreshToken(user.id, ipAddress, userDevice.id).map { token ->

@@ -25,6 +25,7 @@ fun Router.mountAuthRouter(authService: AuthService) {
             password = json.getString("password"),
             deviceName = json.getString("device_name"),
             osType = json.getString("device_os")?.uppercase(),
+            appType = json.getString("app_type").uppercase(),
             ipAddress = context.request().remoteAddress().hostAddress()
         ).onSuccess { tokenPair ->
             context.response()
@@ -90,6 +91,7 @@ fun Router.mountAuthRouter(authService: AuthService) {
             idToken = idToken,
             deviceName = body.getString("device_name"),
             osType = body.getString("device_os")?.uppercase(),
+            appType = body.getString("app_type").uppercase(),
             ipAddress = context.request().remoteAddress().hostAddress()
         ).onSuccess { tokenPair ->
             context.response().putHeader("Content-Type", "application/json").end(tokenPair.toResponse())
@@ -116,6 +118,7 @@ fun Router.mountAuthRouter(authService: AuthService) {
                 code = code,
                 deviceName = context.request().getHeader("X-Device-Name"),
                 osType = context.request().getHeader("X-Device-OS"),
+                appType = context.request().getHeader("X-App-Type"),
                 ipAddress = context.request().remoteAddress().hostAddress()
             ).onSuccess { tokenPair ->
                 context.response()

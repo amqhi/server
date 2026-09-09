@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS "user_devices" (
     "user_id" UUID NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "name" TEXT,
     "os" OS_TYPE,
+    "app_type" APP_TYPE NOT NULL,
     "bit_mask"     INTEGER NOT NULL,
     "registered_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "last_active_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()

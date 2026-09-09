@@ -52,4 +52,18 @@ fun Router.mountUsersRouter(authService: AuthService, usersService: UsersService
             }
         }
     }
+
+    delete("/users").handler { context ->
+        context.withAuth(authService) { authenticatedUser ->
+            usersService.softDeleteUserById(authenticatedUser.id).onSuccess {
+                context.response().setStatusCode(HttpResponseStatus.OK.code()).end("success")
+            }
+                .onFailure { throwable ->
+                    throwable.printStackTrace()
+                    // TODO: Implement onFailure block for DELETE /users
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
 }

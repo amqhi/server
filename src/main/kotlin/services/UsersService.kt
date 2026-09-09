@@ -57,4 +57,13 @@ class UsersService(private val pool: Pool, private val workerExecutor: WorkerExe
                 )
             }
     }
+
+    fun softDeleteUserById(userId: UUID) : Future<Void> {
+        return pool.preparedQuery("""
+            UPDATE "users" SET deleted_at = NOW() WHERE id = $1
+        """.trimIndent())
+            .execute(Tuple.of(userId))
+            .mapEmpty()
+    }
+
 }

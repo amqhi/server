@@ -23,8 +23,8 @@ fun Router.mountAuthRouter(authService: AuthService) {
         authService.login(
             email = json.getString("email"),
             password = json.getString("password"),
-            deviceName = context.request().getHeader("X-Device-Name"),
-            osType = context.request().getHeader("X-Device-OS")?.uppercase(),
+            deviceName = json.getString("device_name"),
+            osType = json.getString("device_os")?.uppercase(),
             ipAddress = context.request().remoteAddress().hostAddress()
         ).onSuccess { tokenPair ->
             context.response()
@@ -88,8 +88,8 @@ fun Router.mountAuthRouter(authService: AuthService) {
         val idToken = body.getString("id_token")
         authService.exchangeGoogleToken(
             idToken = idToken,
-            deviceName = context.request().getHeader("X-Device-Name"),
-            osType = context.request().getHeader("X-Device-OS")?.uppercase(),
+            deviceName = body.getString("device_name"),
+            osType = body.getString("device_os")?.uppercase(),
             ipAddress = context.request().remoteAddress().hostAddress()
         ).onSuccess { tokenPair ->
             context.response().putHeader("Content-Type", "application/json").end(tokenPair.toResponse())

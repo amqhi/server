@@ -89,6 +89,8 @@ fun Router.mountItemsRouter(
                 .onSuccess {
                     syncEventsService.createEvent(
                         itemId = itemId,
+                        // TODO: Replace with actual type
+                        itemType = ItemType.FILE,
                         eventType = SyncEventType.UPDATE,
                         bitMask = user.deviceBitMask,
                         userId = user.id,
@@ -114,6 +116,8 @@ fun Router.mountItemsRouter(
                 .onSuccess { parentId ->
                     syncEventsService.createEvent(
                         itemId = itemId,
+                        // TODO: Replace with actual type
+                        itemType = ItemType.FILE,
                         eventType = SyncEventType.RESTORE,
                         bitMask = user.deviceBitMask,
                         userId = user.id,
@@ -151,6 +155,8 @@ fun Router.mountItemsRouter(
                 .onSuccess {
                     syncEventsService.createEvent(
                         itemId = itemId,
+                        // TODO: Replace with actual type
+                        itemType = ItemType.FILE,
                         eventType = SyncEventType.MOVE,
                         bitMask = user.deviceBitMask,
                         userId = user.id,
@@ -176,6 +182,8 @@ fun Router.mountItemsRouter(
             ).onSuccess {
                 syncEventsService.createEvent(
                     itemId = itemId,
+                    // TODO: Replace with actual type
+                    itemType = ItemType.FILE,
                     eventType = SyncEventType.SOFT_DELETE,
                     bitMask = user.deviceBitMask,
                     userId = user.id,
@@ -200,11 +208,12 @@ fun Router.mountItemsRouter(
             ).onSuccess {
                 syncEventsService.createEvent(
                     itemId = itemId,
+                    // TODO: Replace with actual type
+                    itemType = ItemType.FILE,
                     eventType = SyncEventType.DELETE,
                     bitMask = user.deviceBitMask,
                     userId = user.id,
                 ).onComplete { d, t->
-                    t.printStackTrace()
                     context.success()
                 }
             }

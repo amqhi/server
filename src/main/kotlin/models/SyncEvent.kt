@@ -16,14 +16,13 @@ enum class SyncEventType {
 }
 
 data class SyncEvent(
-    val id: UUID,
     val itemId: UUID,
+    val itemType: ItemType,
     val type: SyncEventType,
     val occurredAt: OffsetDateTime
 ) {
     fun toJson(): JsonObject {
         return JsonObject()
-            .put("id", id.toString())
             .put("item_id", itemId.toString())
             .put("type", type.toString().lowercase())
             .put("occurred_at", occurredAt.toString())
@@ -31,10 +30,20 @@ data class SyncEvent(
 
     companion object {
         fun from(row: Row): SyncEvent = SyncEvent(
-            id = row.getUUID("id"),
             itemId = row.getUUID("item_id"),
+            itemType = ItemType.valueOf(row.getString("item_type").uppercase()),
             type = SyncEventType.valueOf(row.getString("type").uppercase()),
             occurredAt = row.getOffsetDateTime("occurred_at")
         )
+    }
+}
+
+data class SyncEventResponse(
+    val event: SyncEvent,
+    val item: JsonObject
+) {
+    fun toJson(): JsonObject {
+        return event.toJson()
+            .put("item", item)
     }
 }

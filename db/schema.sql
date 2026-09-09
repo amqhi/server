@@ -213,17 +213,13 @@ CREATE TABLE IF NOT EXISTS "shares" (
     );
 
 CREATE TABLE IF NOT EXISTS "sync_events" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "user_id" UUID NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "item_id" UUID NOT NULL,
+    "user_id" UUID NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
     "item_type" ITEM_TYPE NOT NULL,
     "type" SYNC_EVENT_TYPE NOT NULL,
     "synced_devices"   INTEGER DEFAULT 0,
     "occurred_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY("id"),
-    CONSTRAINT "fk_sync_events_item"
-    FOREIGN KEY("item_id") REFERENCES "items"("id")
-    ON DELETE CASCADE
+    PRIMARY KEY("item_id")
     );
 
 ALTER TABLE "albums"

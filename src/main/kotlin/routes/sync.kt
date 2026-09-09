@@ -11,6 +11,7 @@ import com.amqhi.common.withAuth
 import com.amqhi.services.AuthService
 import com.amqhi.services.SyncEventsService
 import io.netty.handler.codec.http.HttpResponseStatus
+import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import java.util.UUID
 
@@ -32,15 +33,17 @@ fun Router.mountSyncRouter(authService: AuthService, syncEventsService: SyncEven
 
     get("/sync/events").handler { context ->
         context.withAuth(authService) { user ->
-            syncEventsService.getEvents(user.deviceBitMask)
+            syncEventsService.getEvents(user.deviceBitMask, user.id)
                 .onSuccess {
-                    context.response().setStatusCode(200).end("[${
-                        it.joinToString(",") { event ->
-                            event.toJson().toString()
-                        }
-                    }]")
+                    context.response().setStatusCode(200).end(JsonObject()
+                        // TODO: Split events if the payload is too large.
+                        .put("has_more", false)
+                        .put("events", it.map { event -> event
+                            .toJson()})
+                        .toString())
                 }
                 .onFailure {
+                    it.printStackTrace()
                     // TODO: Implement onFailure block for GET /sync/events
                     context.response().putHeader("content-type", "text/plain")
                         .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
@@ -48,19 +51,20 @@ fun Router.mountSyncRouter(authService: AuthService, syncEventsService: SyncEven
         }
     }
 
-    post("/sync/events/:id/consume").handler { context ->
-        val eventId = context.pathParam("id")
+    post("/sync/events/acknowledge").handler { context ->
         context.withAuth(authService) { user ->
-            syncEventsService.consumeEvent(
-                eventId = UUID.fromString(eventId),
+            // TODO: Handle failure to retrieve item IDs from request
+            val itemIds = context.body().asJsonObject().getJsonArray("item_ids").map { UUID.fromString(it.toString()) }.toTypedArray()
+            syncEventsService.acknowledgeEvents(
                 bitMask = user.deviceBitMask,
-                userId = user.id
+                userId = user.id,
+                itemIds = itemIds
             ).onSuccess {
                 context.success()
             }
                 .onFailure {
                     it.printStackTrace()
-                    // TODO: Implement onFailure block for POST /sync/events/:id/consume
+                    // TODO: Implement onFailure block for POST /sync/events/acknowledge
                     context.response().putHeader("content-type", "text/plain")
                         .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
                 }

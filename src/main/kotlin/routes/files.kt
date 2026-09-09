@@ -9,6 +9,7 @@ package com.amqhi.routes
 import com.amqhi.common.success
 import com.amqhi.common.withAuth
 import com.amqhi.models.ItemAttributes
+import com.amqhi.models.ItemType
 import com.amqhi.models.SyncEventType
 import com.amqhi.services.AuthService
 import com.amqhi.services.FilesService
@@ -112,6 +113,7 @@ fun Router.mountFilesRouter(authService: AuthService, syncEventsService: SyncEve
                 .onSuccess {
                     syncEventsService.createEvent(
                         itemId = UUID.fromString(itemId),
+                        itemType = ItemType.FILE,
                         eventType = SyncEventType.CREATE,
                         bitMask = user.deviceBitMask,
                         userId = user.id,

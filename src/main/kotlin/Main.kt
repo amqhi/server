@@ -106,7 +106,8 @@ class App : AbstractVerticle() {
             authService,
             FoldersService(
                 databaseProvider.pool
-            )
+            ),
+            syncEventsService
         )
         router.mountNotesRouter(
             authService,

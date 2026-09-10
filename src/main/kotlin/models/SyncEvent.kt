@@ -43,7 +43,10 @@ data class SyncEventResponse(
     val item: JsonObject
 ) {
     fun toJson(): JsonObject {
-        return event.toJson()
+        return JsonObject()
+            .put("type", event.type.toString().lowercase())
+            .put("occurred_at", event.occurredAt.toString())
+            .put("item_type", event.itemType.toString().lowercase())
             .put("item", item)
     }
 }

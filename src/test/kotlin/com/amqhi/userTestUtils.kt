@@ -6,6 +6,7 @@
 
 package com.amqhi
 
+import com.amqhi.models.AppType
 import io.vertx.core.json.Json
 import io.vertx.core.json.JsonObject
 import java.net.URI
@@ -46,12 +47,13 @@ fun createTestUser(client: HttpClient, baseUrl: String, user: TestUser) {
     assert(registerResponse.statusCode() == 200)
 }
 
-fun testLogin(client: HttpClient, baseUrl: String, user: TestUser, deviceName: String, deviceOs: String) : TestSession {
+fun testLogin(client: HttpClient, baseUrl: String, user: TestUser, deviceName: String, deviceOs: String, appType: AppType) : TestSession {
     val loginBody = mapOf(
         "email" to user.email,
         "password" to user.password,
         "device_name" to deviceName,
-        "device_os" to deviceOs
+        "device_os" to deviceOs,
+        "app_type" to appType.toString().lowercase()
     )
 
     val loginRequest = HttpRequest.newBuilder()

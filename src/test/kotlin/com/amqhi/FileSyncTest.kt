@@ -7,6 +7,7 @@
 package com.amqhi
 
 import com.amqhi.common.LogConfig
+import com.amqhi.models.AppType
 import com.amqhi.models.ItemAttributes
 import com.amqhi.models.appScopeFromJsonArray
 import io.vertx.core.Vertx
@@ -38,9 +39,9 @@ class FileSyncTest {
             )
 
             createTestUser(client = client, baseUrl = baseUrl, user = user)
-            val session1 = testLogin(client = client, baseUrl = baseUrl, user = user, deviceName = "Goggle Fixel", deviceOs = "android")
-            val session2 = testLogin(client = client, baseUrl = baseUrl, user = user, deviceName = "Microshift Surface", deviceOs = "windows")
-            val session3 = testLogin(client = client, baseUrl = baseUrl, user = user, deviceName = "Mocbook Pro", deviceOs = "macos")
+            val session1 = testLogin(client = client, baseUrl = baseUrl, user = user, deviceName = "Goggle Fixel", deviceOs = "android", appType = AppType.CLOUD)
+            val session2 = testLogin(client = client, baseUrl = baseUrl, user = user, deviceName = "Microshift Surface", deviceOs = "windows", appType = AppType.CLOUD)
+            val session3 = testLogin(client = client, baseUrl = baseUrl, user = user, deviceName = "Mocbook Pro", deviceOs = "macos", appType = AppType.CLOUD)
 
             val imageFile = File(System.getenv("IMAGE_FILE_PATH") ?: "path/to/image.png")
 
@@ -59,6 +60,7 @@ class FileSyncTest {
             assert(session2SyncEvents.events.size == 1)
             assert(session2SyncEvents.events[0].item.getString("name") == "image.png")
             assert(session2SyncEvents.events[0].item.getLong("size") == imageFile.length())
+            println(session2SyncEvents.events[0].item)
 
             acknowledgeTestSyncEvents(client = client, baseUrl = baseUrl, accessToken = session2.accessToken, itemIds = session2SyncEvents.events.map { UUID.fromString(it.item.getString("id")) }.toTypedArray())
 

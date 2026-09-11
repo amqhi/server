@@ -6,6 +6,7 @@
 
 package com.amqhi
 
+import com.amqhi.models.AppType
 import io.vertx.core.Vertx
 import org.junit.jupiter.api.Test
 import java.net.URI
@@ -31,7 +32,7 @@ class UserLifecycleTest {
             )
             createTestUser(client = client, baseUrl = baseUrl, user = user)
 
-            val session = testLogin(client, baseUrl = baseUrl, user = user, deviceName = "ENIAC", deviceOs = "windows")
+            val session = testLogin(client, baseUrl = baseUrl, user = user, deviceName = "ENIAC", deviceOs = "windows", appType = AppType.CLOUD)
 
             val logoutRequest = HttpRequest.newBuilder()
                 .uri(URI.create("$baseUrl/auth/logout"))

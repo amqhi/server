@@ -18,7 +18,6 @@ import com.amqhi.models.SyncEvent
 import com.amqhi.models.SyncEventResponse
 import com.amqhi.models.SyncEventType
 import io.vertx.core.Future
-import io.vertx.core.json.JsonObject
 import io.vertx.sqlclient.Pool
 import io.vertx.sqlclient.Tuple
 import java.util.UUID
@@ -273,10 +272,16 @@ class SyncEventsService(private val pool: Pool) {
                                     filesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
                                 )
                             }
+                            ItemType.FOLDER -> {
+                                SyncEventResponse(
+                                    event = it,
+                                    itemsMap[it.itemId]!!.toJson()
+                                )
+                            }
                             else -> {
                                 SyncEventResponse(
                                     event = it,
-                                    JsonObject()
+                                    itemsMap[it.itemId]!!.toJson()
                                 )
                             }
                         }

@@ -15,7 +15,7 @@ import io.vertx.sqlclient.RowSet
 import io.vertx.sqlclient.Tuple
 import java.util.UUID
 
-fun updateItem(pool: Pool, id: UUID, type: ItemType?, itemAttributes: ItemAttributes): Future<RowSet<Row>> {
+fun updateItem(pool: Pool, id: UUID, type: ItemType?, userId: UUID, itemAttributes: ItemAttributes): Future<RowSet<Row>> {
     return pool.preparedQuery("""
             UPDATE "items" 
             SET "name" = COALESCE($1, "name"), 
@@ -26,5 +26,5 @@ fun updateItem(pool: Pool, id: UUID, type: ItemType?, itemAttributes: ItemAttrib
             "encrypted" = COALESCE($5, "encrypted")
             WHERE "id" = $6 AND "user_id" = $7
         """.trimIndent())
-        .execute(Tuple.of(itemAttributes.name,type?.toString()?.lowercase(), itemAttributes.eventAt, itemAttributes.parentId, itemAttributes.encrypted, id, itemAttributes.userId))
+        .execute(Tuple.of(itemAttributes.name,type?.toString()?.lowercase(), itemAttributes.eventAt, itemAttributes.parentId, itemAttributes.encrypted, id, userId))
 }

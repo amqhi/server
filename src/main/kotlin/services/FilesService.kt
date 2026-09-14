@@ -10,14 +10,13 @@ import com.amqhi.models.FileItem
 import com.amqhi.models.Item
 import com.amqhi.models.ItemAttributes
 import com.amqhi.models.ItemType
-import com.amqhi.utils.getStringOrNull
 import io.vertx.core.Future
 import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.sqlclient.Pool
 import io.vertx.sqlclient.Tuple
 import java.time.Duration
-import java.time.OffsetDateTime
+import java.util.UUID
 import kotlin.math.ceil
 
 const val FIVE_MB = 5 * 1024 * 1024L
@@ -27,19 +26,19 @@ class FilesService(private val pool: Pool, private val storageService: StorageSe
      * Creates item metadata in the database, generates a presigned upload URL,
      * and returns the item along with a JSON object containing upload parameters.
      * */
-    fun createFile(itemAttributes: ItemAttributes, mimeType: String, size: Long) : Future<Pair<Item, JsonObject>> {
+    fun createFile(userId: UUID, itemAttributes: ItemAttributes, mimeType: String, size: Long) : Future<Pair<Item, JsonObject>> {
         return pool.preparedQuery("""
             INSERT INTO items(user_id, type, created_at, updated_at, event_at, parent_id, name, comment, encrypted, app_scope) VALUES ($1, $2, NOW(), NOW(), $3, $4, $5, $6, $7, $8)
                  RETURNING *
                  """.trimIndent())
-            .execute(Tuple.of(itemAttributes.userId, ItemType.FILE.toString().lowercase(), itemAttributes.eventAt,itemAttributes.parentId, itemAttributes.name, itemAttributes.comment, itemAttributes.encrypted, itemAttributes.appScope))
+            .execute(Tuple.of(userId, ItemType.FILE.toString().lowercase(), itemAttributes.eventAt,itemAttributes.parentId, itemAttributes.name, itemAttributes.comment, itemAttributes.encrypted, itemAttributes.appScope))
             .compose { rows ->
                 if(!rows.any()) {
                     // TODO: Replace with domain exception
                     return@compose Future.failedFuture(Exception())
                 }
                 val item = Item.from(rows.first())
-                val key = "${itemAttributes.userId}/${item.id}/original"
+                val key = "${userId}/${item.id}/original"
 
                 // TODO: Make single vs. multipart upload threshold configurable
                 if(size <= FIVE_MB) {

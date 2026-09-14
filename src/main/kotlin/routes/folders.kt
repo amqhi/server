@@ -21,7 +21,8 @@ fun Router.mountFoldersRouter(authService: AuthService, foldersService: FoldersS
         context.withAuth(authService) { user ->
             val body = context.body().asJsonObject()
             foldersService.createFolder(
-                itemAttributes = ItemAttributes.from(user.id, body)
+                userId = user.id,
+                itemAttributes = ItemAttributes.from(body)
             ).onSuccess { folder ->
                 syncEventsService.createEvent(
                     itemId = folder.id,

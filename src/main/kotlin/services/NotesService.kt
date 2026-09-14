@@ -19,6 +19,7 @@ import java.util.UUID
 
 class NotesService(private val pool: Pool) {
     fun createNote(
+        userId: UUID,
         itemAttributes: ItemAttributes,
         title: String?,
         subtitle: String?,
@@ -50,7 +51,7 @@ class NotesService(private val pool: Pool) {
         )
             .execute(
                 Tuple.of(
-                    itemAttributes.userId,
+                    userId,
                     ItemType.FILE.toString(),
                     itemAttributes.eventAt,
                     itemAttributes.parentId,
@@ -71,6 +72,7 @@ class NotesService(private val pool: Pool) {
 
     fun updateNote(
         id: UUID,
+        userId: UUID,
         itemAttributes: ItemAttributes,
         title: String?,
         subtitle: String?,
@@ -78,7 +80,7 @@ class NotesService(private val pool: Pool) {
         style: JsonObject?,
         extra: JsonObject?
     ): Future<Void> {
-        return updateItem(pool, id, null, itemAttributes).compose {
+        return updateItem(pool, id, null, userId, itemAttributes).compose {
             pool.preparedQuery("""
             UPDATE "notes" 
             SET "title" = COALESCE($1, "title"), 

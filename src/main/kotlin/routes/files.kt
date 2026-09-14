@@ -26,7 +26,8 @@ fun Router.mountFilesRouter(authService: AuthService, syncEventsService: SyncEve
         context.withAuth(authService) { user ->
             val json = context.body().asJsonObject()
             filesService.createFile(
-                itemAttributes = ItemAttributes.from(user.id, json),
+                userId = user.id,
+                itemAttributes = ItemAttributes.from(json),
                 mimeType = json.getString("mime_type"),
                 size = json.getLong("size")
             ).onSuccess {

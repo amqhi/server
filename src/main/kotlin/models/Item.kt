@@ -18,6 +18,7 @@ enum class ItemType { NOTE, FILE, FOLDER, SONG, ARTIST, ALBUM, ALIAS, THEME, LIN
 
 interface ItemCore {
     val id: UUID
+    val userId: UUID
     val type: ItemType
     val createdAt: OffsetDateTime
     val updatedAt: OffsetDateTime
@@ -28,7 +29,6 @@ interface ItemCore {
 }
 
 interface ItemAttributesCore {
-    val userId: UUID
     val name: String?
     val eventAt: OffsetDateTime?
     val parentId: UUID?
@@ -38,7 +38,6 @@ interface ItemAttributesCore {
 }
 
 data class ItemAttributes(
-    override val userId: UUID,
     override val name: String?,
     override val eventAt: OffsetDateTime?,
     override val parentId: UUID?,
@@ -52,9 +51,8 @@ data class ItemAttributes(
     override val appScope: Int
 ) : ItemAttributesCore {
     companion object {
-        fun from(userId: UUID, jsonObject: JsonObject) : ItemAttributes {
+        fun from(jsonObject: JsonObject) : ItemAttributes {
             return ItemAttributes(
-                userId = userId,
                 name = jsonObject.getValue("name") as? String,
                 eventAt = jsonObject.getValue("event_at") as? OffsetDateTime,
                 parentId = (jsonObject.getValue("parent_id") as? String)?.let { UUID.fromString(it) },
@@ -66,9 +64,9 @@ data class ItemAttributes(
             )
         }
 
-        fun from(userId: UUID, context: RoutingContext) : ItemAttributes {
+        fun from(context: RoutingContext) : ItemAttributes {
             val json = context.body().asJsonObject()
-            return from(userId,json)
+            return from(json)
         }
     }
 }

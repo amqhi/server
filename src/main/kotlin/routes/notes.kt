@@ -22,7 +22,8 @@ fun Router.mountNotesRouter(authService: AuthService, notesService: NotesService
         context.withAuth(authService) { user ->
             val json = context.body().asJsonObject()
             notesService.createNote(
-                itemAttributes = ItemAttributes.from(user.id, json),
+                userId = user.id,
+                itemAttributes = ItemAttributes.from(json),
                 title = json.getValue("title") as? String,
                 subtitle = json.getValue("subtitle") as? String,
                 content = json.getJsonArray("content"),
@@ -44,7 +45,8 @@ fun Router.mountNotesRouter(authService: AuthService, notesService: NotesService
             val json = context.body().asJsonObject()
             notesService.updateNote(
                 id = UUID.fromString(context.pathParam("id")),
-                itemAttributes = ItemAttributes.from(user.id, json),
+                userId = user.id,
+                itemAttributes = ItemAttributes.from(json),
                 title = json.getValue("title") as? String,
                 subtitle = json.getValue("subtitle") as? String,
                 content = json.getValue("content") as? JsonArray,

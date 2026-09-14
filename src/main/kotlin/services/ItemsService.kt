@@ -95,8 +95,8 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
         }
     }
 
-    fun updateItem(id: UUID, type: ItemType?, itemAttributes: ItemAttributes): Future<Void> {
-        return updateItem(pool, id, type, itemAttributes).mapEmpty()
+    fun updateItem(id: UUID, type: ItemType?, userId: UUID, itemAttributes: ItemAttributes): Future<Void> {
+        return updateItem(pool, id, type, userId, itemAttributes).mapEmpty()
     }
 
     fun restoreItem(id: UUID, userId: UUID) : Future<UUID?> {

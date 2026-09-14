@@ -46,7 +46,6 @@ class FileSyncTest {
             val imageFile = File(System.getenv("IMAGE_FILE_PATH") ?: "path/to/image.png")
 
             val createdImage = createTestFile(client = client, baseUrl = baseUrl, attributes = ItemAttributes(
-                userId = UUID.randomUUID(),
                 name = "image.png",
                 eventAt = null,
                 parentId = null,

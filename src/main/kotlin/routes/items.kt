@@ -84,7 +84,8 @@ fun Router.mountItemsRouter(
             itemsService.updateItem(
                 id = itemId,
                 type = (json.getValue("type") as? String)?.let { ItemType.valueOf(it.uppercase()) },
-                itemAttributes = ItemAttributes.from(user.id, json)
+                userId = user.id,
+                itemAttributes = ItemAttributes.from(json)
             )
                 .onSuccess {
                     syncEventsService.createEvent(

@@ -116,8 +116,16 @@ CREATE TABLE IF NOT EXISTS "files" (
                                        PRIMARY KEY("id")
     );
 
-
-
+CREATE TABLE IF NOT EXISTS "folders" (
+                                       "id" UUID NOT NULL UNIQUE,
+                                       "background_id" UUID,
+                                       "background_color" INTEGER,
+                                       "icon_id" UUID,
+                                       "icon_color" INTEGER,
+                                        FOREIGN KEY ("background_id") REFERENCES "items"("id") ON DELETE SET NULL,
+                                        FOREIGN KEY ("icon_id") REFERENCES "items"("id") ON DELETE SET NULL,
+                                       PRIMARY KEY("id")
+    );
 
 CREATE TABLE IF NOT EXISTS "themes" (
                                         "id" UUID NOT NULL UNIQUE,
@@ -233,6 +241,9 @@ ALTER TABLE "notes"
     ADD FOREIGN KEY("id") REFERENCES "items"("id")
         ON UPDATE NO ACTION ON DELETE CASCADE;
 ALTER TABLE "files"
+    ADD FOREIGN KEY("id") REFERENCES "items"("id")
+        ON UPDATE NO ACTION ON DELETE CASCADE;
+ALTER TABLE "folders"
     ADD FOREIGN KEY("id") REFERENCES "items"("id")
         ON UPDATE NO ACTION ON DELETE CASCADE;
 ALTER TABLE "songs"

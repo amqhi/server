@@ -6,7 +6,8 @@
 
 package com.amqhi.services
 
-import com.amqhi.models.Item
+import com.amqhi.models.Folder
+import com.amqhi.models.FolderAttributes
 import com.amqhi.models.ItemAttributes
 import com.amqhi.models.ItemType
 import io.vertx.core.Future
@@ -16,14 +17,56 @@ import java.util.UUID
 
 class FoldersService(private val pool: Pool) {
 
-    fun createFolder(userId: UUID, itemAttributes: ItemAttributes) : Future<Item> {
+    fun createFolder(userId: UUID, itemAttributes: ItemAttributes, folderAttributes: FolderAttributes) : Future<Folder> {
         return pool.preparedQuery("""
-            INSERT INTO items(user_id, type, created_at, updated_at, event_at, parent_id, name, comment, encrypted, app_scope) VALUES ($1, $2, NOW(), NOW(), $3, $4, $5, $6, $7, $8)
-                 RETURNING *
+                  WITH inserted_item AS (
+                        INSERT INTO items(
+                            user_id,
+                            type,
+                            created_at,
+                            updated_at,
+                            event_at,
+                            parent_id,
+                            name,
+                            comment,
+                            encrypted,
+                            app_scope
+                        )
+                        VALUES (
+                            $1, $2, NOW(), NOW(), $3, $4, $5, $6, $7, $8
+                        )
+                        RETURNING *
+                    ),
+                    inserted_folder AS (
+                        INSERT INTO folders (
+                            id,
+                            background_id,
+                            background_color,
+                            icon_id,
+                            icon_color
+                        )
+                        SELECT
+                            id,
+                            $9,
+                            $10,
+                            $11,
+                            $12
+                        FROM inserted_item
+                        RETURNING *
+                    )
+                    SELECT
+                        i.*,
+                        f.background_id,
+                        f.background_color,
+                        f.icon_id,
+                        f.icon_color
+                    FROM inserted_item i
+                    JOIN inserted_folder f ON f.id = i.id;
                  """.trimIndent())
-            .execute(Tuple.of(userId, ItemType.FOLDER.toString().lowercase(), itemAttributes.eventAt,itemAttributes.parentId, itemAttributes.name, itemAttributes.comment, itemAttributes.encrypted, itemAttributes.appScope))
+            .execute(Tuple.of(userId, ItemType.FOLDER.toString().lowercase(), itemAttributes.eventAt,itemAttributes.parentId, itemAttributes.name, itemAttributes.comment, itemAttributes.encrypted, itemAttributes.appScope, folderAttributes.backgroundId, folderAttributes.backgroundColor?.value, folderAttributes.iconId, folderAttributes.iconColor?.value))
             .map { rows ->
-                Item.from(rows.first())
+                println(rows.first().toJson())
+                Folder.from(rows.first())
             }
     }
 

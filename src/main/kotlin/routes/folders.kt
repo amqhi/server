@@ -7,6 +7,7 @@
 package com.amqhi.routes
 
 import com.amqhi.common.withAuth
+import com.amqhi.models.FolderAttributes
 import com.amqhi.models.ItemAttributes
 import com.amqhi.models.ItemType
 import com.amqhi.models.SyncEventType
@@ -22,7 +23,8 @@ fun Router.mountFoldersRouter(authService: AuthService, foldersService: FoldersS
             val body = context.body().asJsonObject()
             foldersService.createFolder(
                 userId = user.id,
-                itemAttributes = ItemAttributes.from(body)
+                itemAttributes = ItemAttributes.from(body),
+                folderAttributes = FolderAttributes.from(body)
             ).onSuccess { folder ->
                 syncEventsService.createEvent(
                     itemId = folder.id,
@@ -35,6 +37,7 @@ fun Router.mountFoldersRouter(authService: AuthService, foldersService: FoldersS
                 }
             }
                 .onFailure {
+                    it.printStackTrace()
                     // TODO: Implement onFailure block for POST /folders
                     context.response().putHeader("content-type", "text/plain")
                         .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")

@@ -10,6 +10,7 @@ import com.amqhi.models.Album
 import com.amqhi.models.Alias
 import com.amqhi.models.Artist
 import com.amqhi.models.FileItem
+import com.amqhi.models.Folder
 import com.amqhi.models.Item
 import com.amqhi.models.ItemType
 import com.amqhi.models.Note
@@ -42,7 +43,7 @@ class SyncEventsService(private val pool: Pool) {
                 val songIds = events.filter { it.itemType == ItemType.SONG }.map { it.itemId }.toTypedArray()
                 val albumIds = events.filter { it.itemType == ItemType.ALBUM }.map { it.itemId }.toTypedArray()
                 val artistIds = events.filter { it.itemType == ItemType.ARTIST }.map { it.itemId }.toTypedArray()
-//                val folderIds = events.filter { it.itemType == ItemType.FOLDER }.map { it.itemId }.toTypedArray()
+                val folderIds = events.filter { it.itemType == ItemType.FOLDER }.map { it.itemId }.toTypedArray()
                 val aliasIds = events.filter { it.itemType == ItemType.ALIAS }.map { it.itemId }.toTypedArray()
                 val themeIds = events.filter { it.itemType == ItemType.THEME }.map { it.itemId }.toTypedArray()
                 val linkIds = events.filter { it.itemType == ItemType.LINK }.map { it.itemId }.toTypedArray()
@@ -96,6 +97,28 @@ class SyncEventsService(private val pool: Pool) {
                     .map { rows ->
                         rows.map {
                             FileItem.from(it)
+                        }
+                    }
+                val foldersFuture = pool.preparedQuery(
+                    """
+                       SELECT
+                            i.*,
+                            f.*
+                        FROM items i
+                        INNER JOIN folders f ON i.id = f.id
+                        WHERE
+                        i.user_id = $1
+                          AND i.id = ANY($2)
+                          AND i.type = 'folder';
+                        """
+                        .trimIndent())
+                    .execute(Tuple.of(
+                        userId,
+                        folderIds
+                    ))
+                    .map { rows ->
+                        rows.map {
+                            Folder.from(it)
                         }
                     }
                 val songsFuture = pool.preparedQuery("""
@@ -212,10 +235,11 @@ class SyncEventsService(private val pool: Pool) {
                             Note.from(it)
                         }
                     }
-                Future.all<Void>(listOf(itemsFuture, notesFuture, filesFuture, songsFuture, albumsFuture, linksFuture, themesFuture, artistsFuture, aliasesFuture)).map {
+                Future.all<Void>(listOf(itemsFuture, notesFuture, filesFuture, foldersFuture, songsFuture, albumsFuture, linksFuture, themesFuture, artistsFuture, aliasesFuture)).map {
                     val itemsMap = itemsFuture.result().associateBy { it.id }
                     val notesMap = notesFuture.result().associateBy { it.id }
                     val filesMap = filesFuture.result().associateBy { it.id }
+                    val foldersMap = foldersFuture.result().associateBy { it.id }
                     val songsMap = songsFuture.result().associateBy { it.id }
                     val albumsMap = albumsFuture.result().associateBy { it.id }
                     val linksMap = linksFuture.result().associateBy { it.id }
@@ -275,7 +299,7 @@ class SyncEventsService(private val pool: Pool) {
                             ItemType.FOLDER -> {
                                 SyncEventResponse(
                                     event = it,
-                                    itemsMap[it.itemId]!!.toJson()
+                                    item = foldersMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
                                 )
                             }
                             else -> {

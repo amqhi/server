@@ -87,11 +87,10 @@ fun Router.mountItemsRouter(
                 userId = user.id,
                 itemAttributes = ItemAttributes.from(json)
             )
-                .onSuccess {
+                .onSuccess { itemType ->
                     syncEventsService.createEvent(
                         itemId = itemId,
-                        // TODO: Replace with actual type
-                        itemType = ItemType.FILE,
+                        itemType = itemType,
                         eventType = SyncEventType.UPDATE,
                         bitMask = user.deviceBitMask,
                         userId = user.id,
@@ -114,17 +113,16 @@ fun Router.mountItemsRouter(
                 id = itemId,
                 userId = user.id
             )
-                .onSuccess { parentId ->
+                .onSuccess { result ->
                     syncEventsService.createEvent(
                         itemId = itemId,
-                        // TODO: Replace with actual type
-                        itemType = ItemType.FILE,
+                        itemType = result.itemType,
                         eventType = SyncEventType.RESTORE,
                         bitMask = user.deviceBitMask,
                         userId = user.id,
                     ).onComplete {
                         val json = JsonObject()
-                        json.put("parent_id", parentId)
+                        json.put("parent_id", result.parentId?.toString())
                         context.response().putHeader("Content-Type", "application/json").setStatusCode(200)
                             .end(json.toString())
                     }
@@ -153,11 +151,10 @@ fun Router.mountItemsRouter(
                 },
                 userId = user.id
             )
-                .onSuccess {
+                .onSuccess { itemType ->
                     syncEventsService.createEvent(
                         itemId = itemId,
-                        // TODO: Replace with actual type
-                        itemType = ItemType.FILE,
+                        itemType = itemType,
                         eventType = SyncEventType.MOVE,
                         bitMask = user.deviceBitMask,
                         userId = user.id,
@@ -180,11 +177,10 @@ fun Router.mountItemsRouter(
             itemsService.softDeleteItem(
                 id = itemId,
                 userId = user.id
-            ).onSuccess {
+            ).onSuccess { itemType ->
                 syncEventsService.createEvent(
                     itemId = itemId,
-                    // TODO: Replace with actual type
-                    itemType = ItemType.FILE,
+                    itemType = itemType,
                     eventType = SyncEventType.SOFT_DELETE,
                     bitMask = user.deviceBitMask,
                     userId = user.id,
@@ -206,11 +202,10 @@ fun Router.mountItemsRouter(
             itemsService.deleteItem(
                 id = itemId,
                 userId = user.id
-            ).onSuccess {
+            ).onSuccess { itemType ->
                 syncEventsService.createEvent(
                     itemId = itemId,
-                    // TODO: Replace with actual type
-                    itemType = ItemType.FILE,
+                    itemType = itemType,
                     eventType = SyncEventType.DELETE,
                     bitMask = user.deviceBitMask,
                     userId = user.id,

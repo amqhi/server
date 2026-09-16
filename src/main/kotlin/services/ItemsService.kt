@@ -95,11 +95,30 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
         }
     }
 
-    fun updateItem(id: UUID, type: ItemType?, userId: UUID, itemAttributes: ItemAttributes): Future<Void> {
-        return updateItem(pool, id, type, userId, itemAttributes).mapEmpty()
+    fun updateItem(id: UUID, type: ItemType?, userId: UUID, itemAttributes: ItemAttributes): Future<ItemType> {
+        return pool.preparedQuery("""
+            UPDATE "items" 
+            SET "name" = COALESCE($1, "name"), 
+            "type" = COALESCE($2, "type"),
+            "updated_at" = NOW(),
+            "event_at" = COALESCE($3, "event_at"),
+            "parent_id" = COALESCE($4, "parent_id"),
+            "encrypted" = COALESCE($5, "encrypted")
+            WHERE "id" = $6 AND "user_id" = $7
+            RETURNING "type"
+        """.trimIndent())
+            .execute(Tuple.of(itemAttributes.name,type?.toString()?.lowercase(), itemAttributes.eventAt, itemAttributes.parentId, itemAttributes.encrypted, id, userId))
+            .map {
+                ItemType.valueOf(it.first().getString("type").uppercase())
+            }
     }
 
-    fun restoreItem(id: UUID, userId: UUID) : Future<UUID?> {
+    data class RestoreItemResult(
+        val parentId: UUID?,
+        val itemType: ItemType
+    )
+
+    fun restoreItem(id: UUID, userId: UUID) : Future<RestoreItemResult> {
         return pool.preparedQuery("""
             UPDATE "items" AS i
             SET 
@@ -113,22 +132,28 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
                     ELSE i."parent_id"
                 END
             WHERE i."id" = $1 AND i."user_id" = $2
-            RETURNING "parent_id"
+            RETURNING "parent_id", "type"
         """.trimIndent())
             .execute(Tuple.of(id, userId))
             .map {
-                it.firstOrNull()?.getValue("parent_id") as? UUID
+                RestoreItemResult(
+                    parentId = it.firstOrNull()?.getValue("parent_id") as? UUID,
+                    itemType = ItemType.valueOf(it.first().getString("type").uppercase())
+                )
             }
     }
 
-    fun softDeleteItem(id: UUID, userId: UUID): Future<Void> {
+    fun softDeleteItem(id: UUID, userId: UUID): Future<ItemType> {
         return pool.preparedQuery("""
             UPDATE "items" SET "deleted_at" = NOW() WHERE "id" = $1 AND "user_id" = $2
+            RETURNING "type"
         """.trimIndent())
-            .execute(Tuple.of(id, userId)).mapEmpty()
+            .execute(Tuple.of(id, userId)).map {
+                ItemType.valueOf(it.first().getString("type").uppercase())
+            }
     }
 
-    fun deleteItem(id: UUID, userId: UUID): Future<Void> {
+    fun deleteItem(id: UUID, userId: UUID): Future<ItemType> {
         return storageService.getObjectMetadata("$userId/$id/thumbnail")
             .compose { storageService.delete("$userId/$id/thumbnail") }
             .recover {
@@ -148,16 +173,21 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
                 Future.succeededFuture()
             }
             .compose{
-                pool.preparedQuery("DELETE FROM items WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL")
+                pool.preparedQuery("DELETE FROM items WHERE id = $1 AND user_id = $2 AND deleted_at IS NOT NULL RETURNING type")
                     .execute(Tuple.of(id, userId))
             }
-            .mapEmpty()
+            .map {
+                ItemType.valueOf(it.first().getString("type").uppercase())
+            }
     }
 
-    fun moveItem(id: UUID, userId: UUID, parentId: UUID?): Future<Void> {
+    fun moveItem(id: UUID, userId: UUID, parentId: UUID?): Future<ItemType> {
         return pool.preparedQuery("""
             UPDATE "items" SET "parent_id" = $1 WHERE "id" = $2 AND "user_id" = $3
+            RETURNING "type"
         """.trimIndent())
-            .execute(Tuple.of(parentId, id, userId)).mapEmpty()
+            .execute(Tuple.of(parentId, id, userId)).map{
+                ItemType.valueOf(it.first().getString("type").uppercase())
+            }
     }
 }

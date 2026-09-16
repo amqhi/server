@@ -26,7 +26,7 @@ fun Router.mountFoldersRouter(authService: AuthService, foldersService: FoldersS
                 itemAttributes = ItemAttributes.from(body),
                 folderAttributes = FolderAttributes.from(body)
             ).onSuccess { folder ->
-                syncEventsService.createEvent(
+                syncEventsService.saveEvent(
                     itemId = folder.id,
                     eventType = SyncEventType.CREATE,
                     bitMask = user.deviceBitMask,

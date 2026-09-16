@@ -88,7 +88,7 @@ fun Router.mountItemsRouter(
                 itemAttributes = ItemAttributes.from(json)
             )
                 .onSuccess { itemType ->
-                    syncEventsService.createEvent(
+                    syncEventsService.saveEvent(
                         itemId = itemId,
                         itemType = itemType,
                         eventType = SyncEventType.UPDATE,
@@ -114,7 +114,7 @@ fun Router.mountItemsRouter(
                 userId = user.id
             )
                 .onSuccess { result ->
-                    syncEventsService.createEvent(
+                    syncEventsService.saveEvent(
                         itemId = itemId,
                         itemType = result.itemType,
                         eventType = SyncEventType.RESTORE,
@@ -152,7 +152,7 @@ fun Router.mountItemsRouter(
                 userId = user.id
             )
                 .onSuccess { itemType ->
-                    syncEventsService.createEvent(
+                    syncEventsService.saveEvent(
                         itemId = itemId,
                         itemType = itemType,
                         eventType = SyncEventType.MOVE,
@@ -178,7 +178,7 @@ fun Router.mountItemsRouter(
                 id = itemId,
                 userId = user.id
             ).onSuccess { itemType ->
-                syncEventsService.createEvent(
+                syncEventsService.saveEvent(
                     itemId = itemId,
                     itemType = itemType,
                     eventType = SyncEventType.SOFT_DELETE,
@@ -203,7 +203,7 @@ fun Router.mountItemsRouter(
                 id = itemId,
                 userId = user.id
             ).onSuccess { itemType ->
-                syncEventsService.createEvent(
+                syncEventsService.saveEvent(
                     itemId = itemId,
                     itemType = itemType,
                     eventType = SyncEventType.DELETE,

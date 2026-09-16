@@ -314,7 +314,7 @@ class SyncEventsService(private val pool: Pool) {
             }
     }
 
-    fun createEvent(itemId: UUID, eventType: SyncEventType, bitMask: Int, userId: UUID, itemType: ItemType) : Future<SyncEvent> {
+    fun saveEvent(itemId: UUID, eventType: SyncEventType, bitMask: Int, userId: UUID, itemType: ItemType) : Future<SyncEvent> {
         return pool.preparedQuery("""
             INSERT INTO sync_events(item_id, item_type, type, synced_devices, occurred_at, user_id) VALUES ($1, $2, $3, $4, NOW(), $5)
             ON CONFLICT (item_id) DO UPDATE SET item_type = $2, type = $3, synced_devices = $4, occurred_at = NOW()

@@ -112,7 +112,7 @@ fun Router.mountFilesRouter(authService: AuthService, syncEventsService: SyncEve
                     }?.toList() ?: listOf()
             )
                 .onSuccess {
-                    syncEventsService.createEvent(
+                    syncEventsService.saveEvent(
                         itemId = UUID.fromString(itemId),
                         itemType = ItemType.FILE,
                         eventType = SyncEventType.CREATE,

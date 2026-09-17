@@ -72,14 +72,29 @@ class AuthService(
     var oauth2: OAuth2Auth? = null
 
     fun authenticate(accessToken: String): Future<AuthenticatedUser> {
-        return jwtAuth.authenticate(TokenCredentials(accessToken)).map {
-            AuthenticatedUser(
-                id = UUID.fromString(it.get("sub")),
-                email = it.get("email"),
-                name = it.get("name"),
-                deviceId = UUID.fromString(it.get("device_id")),
-                deviceBitMask = it.get("device_bit_mask"),
-            )
+        return jwtAuth.authenticate(TokenCredentials(accessToken)).compose { jwtUser ->
+            // TODO: Check refresh token expiration in Redis
+            val refreshTokenId: String = jwtUser.get("jti")
+            pool.preparedQuery("""
+                SELECT 1 FROM tokens WHERE id = $1 
+                AND revoked_at IS NULL
+                AND expires_at > NOW()
+            """.trimIndent())
+                .execute(Tuple.of(refreshTokenId))
+                .map {
+                    if (!it.any()) {
+                        // TODO: Use domain-specific exception for validating JWT
+                        throw Exception("Token is revoked or expired")
+                    }
+
+                    AuthenticatedUser(
+                        id = UUID.fromString(jwtUser.get("sub")),
+                        email = jwtUser.get("email"),
+                        name = jwtUser.get("name"),
+                        deviceId = UUID.fromString(jwtUser.get("device_id")),
+                        deviceBitMask = jwtUser.get("device_bit_mask"),
+                    )
+                }
         }
     }
 

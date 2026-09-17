@@ -70,4 +70,21 @@ class FoldersService(private val pool: Pool) {
             }
     }
 
+    fun getFolders(userId: UUID) : Future<List<Folder>> {
+        return pool.preparedQuery("""
+                       SELECT
+                            i.*,
+                            f.*
+                        FROM items i
+                        INNER JOIN folders f ON i.id = f.id
+                        WHERE
+                        i.user_id = $1
+                          AND i.type = 'folder';
+                        """.trimIndent())
+            .execute(Tuple.of(userId))
+            .map { rows ->
+                rows.map { Folder.from(it) }
+            }
+    }
+
 }

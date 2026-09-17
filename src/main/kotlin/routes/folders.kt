@@ -15,9 +15,30 @@ import com.amqhi.services.AuthService
 import com.amqhi.services.FoldersService
 import com.amqhi.services.SyncEventsService
 import io.netty.handler.codec.http.HttpResponseStatus
+import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 
 fun Router.mountFoldersRouter(authService: AuthService, foldersService: FoldersService, syncEventsService: SyncEventsService) {
+
+    // TODO: Pagination for GET /folders
+    get("/folders").handler { context ->
+        context.withAuth(authService) { user ->
+            foldersService.getFolders(user.id).onSuccess {
+                context.response().setStatusCode(200).end(
+                    JsonObject()
+                        .put("has_more", false)
+                        .put("folders", it.map { folder -> folder.toJson() })
+                        .toString()
+                )
+            }
+                .onFailure {
+                    // TODO: Implement onFailure block for GET /folders
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
+
     post("/folders").handler { context ->
         context.withAuth(authService) { user ->
             val body = context.body().asJsonObject()

@@ -87,6 +87,23 @@ class FilesService(private val pool: Pool, private val storageService: StorageSe
             }
     }
 
+    fun getFiles(userId: UUID) : Future<List<FileItem>> {
+        return pool.preparedQuery("""
+                       SELECT
+                            i.*,
+                            f.*
+                        FROM items i
+                        INNER JOIN files f ON i.id = f.id
+                        WHERE
+                        i.user_id = $1
+                          AND i.type = 'file';
+                        """.trimIndent())
+            .execute(Tuple.of(userId))
+            .map { rows ->
+                rows.map { FileItem.from(it) }
+            }
+    }
+
     fun getFile(userId: String, itemId: String): Future<FileItem> {
         return pool.preparedQuery("""
             SELECT 

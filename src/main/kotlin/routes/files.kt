@@ -22,6 +22,26 @@ import io.vertx.ext.web.Router
 import java.util.UUID
 
 fun Router.mountFilesRouter(authService: AuthService, syncEventsService: SyncEventsService, filesService: FilesService) {
+
+    // TODO: Pagination for GET /files
+    get("/files").handler { context ->
+        context.withAuth(authService) { user ->
+            filesService.getFiles(user.id).onSuccess {
+                context.response().setStatusCode(200).end(
+                    JsonObject()
+                        .put("has_more", false)
+                        .put("files", it.map { file -> file.toJson() })
+                        .toString()
+                )
+            }
+                .onFailure {
+                    // TODO: Implement onFailure block for GET /files
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
+
     post("/files").handler { context ->
         context.withAuth(authService) { user ->
             val json = context.body().asJsonObject()

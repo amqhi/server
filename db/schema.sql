@@ -89,7 +89,6 @@ CREATE INDEX "items_index_0"
 CREATE TABLE IF NOT EXISTS "notes" (
                                        "id" UUID NOT NULL UNIQUE,
                                        "content" JSONB NOT NULL,
-                                       "extra" JSONB,
                                        "title" TEXT,
                                        "subtitle" TEXT,
                                        "style" JSONB,

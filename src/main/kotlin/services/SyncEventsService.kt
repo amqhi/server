@@ -19,6 +19,7 @@ import com.amqhi.models.SyncEvent
 import com.amqhi.models.SyncEventResponse
 import com.amqhi.models.SyncEventType
 import io.vertx.core.Future
+import io.vertx.core.json.JsonObject
 import io.vertx.sqlclient.Pool
 import io.vertx.sqlclient.Tuple
 import java.util.UUID
@@ -251,61 +252,61 @@ class SyncEventsService(private val pool: Pool) {
                             ItemType.SONG -> {
                                 SyncEventResponse(
                                     event = it,
-                                    songsMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    songsMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.ALBUM -> {
                                 SyncEventResponse(
                                     event = it,
-                                    albumsMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    albumsMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.LINK -> {
                                 SyncEventResponse(
                                     event = it,
-                                    linksMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    linksMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.THEME -> {
                                 SyncEventResponse(
                                     event = it,
-                                    themesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    themesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.ALIAS -> {
                                 SyncEventResponse(
                                     event = it,
-                                    aliasesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    aliasesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.ARTIST -> {
                                 SyncEventResponse(
                                     event = it,
-                                    artistsMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    artistsMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.NOTE -> {
                                 SyncEventResponse(
                                     event = it,
-                                    notesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    notesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.FILE -> {
                                 SyncEventResponse(
                                     event = it,
-                                    filesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    filesMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             ItemType.FOLDER -> {
                                 SyncEventResponse(
                                     event = it,
-                                    item = foldersMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]!!.toJson()
+                                    item = foldersMap[it.itemId]?.toJson() ?: itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                             else -> {
                                 SyncEventResponse(
                                     event = it,
-                                    itemsMap[it.itemId]!!.toJson()
+                                    itemsMap[it.itemId]?.toJson() ?: JsonObject().put("id", it.itemId.toString())
                                 )
                             }
                         }

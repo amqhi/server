@@ -39,7 +39,7 @@ class SyncEventsService(private val pool: Pool) {
             }
             .compose { events ->
                 val itemIds = events.map {it.itemId}.toTypedArray()
-               val noteIds = events.filter { it.itemType == ItemType.NOTE }.map { it.itemId }.toTypedArray()
+                val noteIds = events.filter { it.itemType == ItemType.NOTE }.map { it.itemId }.toTypedArray()
                 val fileIds = events.filter { it.itemType == ItemType.FILE }.map { it.itemId }.toTypedArray()
                 val songIds = events.filter { it.itemType == ItemType.SONG }.map { it.itemId }.toTypedArray()
                 val albumIds = events.filter { it.itemType == ItemType.ALBUM }.map { it.itemId }.toTypedArray()
@@ -328,6 +328,30 @@ class SyncEventsService(private val pool: Pool) {
                 bitMask,
                 userId
             ))
+            .map { rows ->
+                if(!rows.any()) {
+                    // TODO: replace with a better exception
+                    throw Exception("OMG")
+                }
+                SyncEvent.from(rows.first())
+            }
+    }
+
+    fun saveEvent(itemChanges: List<Pair<UUID, ItemType>>, eventType: SyncEventType, bitMask: Int, userId: UUID) : Future<SyncEvent> {
+        return pool.preparedQuery("""
+            INSERT INTO sync_events(item_id, item_type, type, synced_devices, occurred_at, user_id) VALUES ($1, $2, $3, $4, NOW(), $5)
+            ON CONFLICT (item_id) DO UPDATE SET item_type = $2, type = $3, synced_devices = $4, occurred_at = NOW()
+                RETURNING *
+        """.trimIndent())
+            .executeBatch(itemChanges.map { pair ->
+                Tuple.of(
+                    pair.first,
+                    pair.second.toString().lowercase(),
+                    eventType.toString().lowercase(),
+                    bitMask,
+                    userId
+                )
+            })
             .map { rows ->
                 if(!rows.any()) {
                     // TODO: replace with a better exception

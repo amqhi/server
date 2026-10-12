@@ -16,6 +16,7 @@ import com.amqhi.services.AuthService
 import com.amqhi.services.ItemsService
 import com.amqhi.services.SyncEventsService
 import io.netty.handler.codec.http.HttpResponseStatus
+import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.Router
 import java.util.UUID
@@ -136,6 +137,47 @@ fun Router.mountItemsRouter(
         }
     }
 
+    post("/items/restore").handler { context ->
+        context.withAuth(authService) { user ->
+            val body = context.body().asJsonObject()
+            val ids = body.getJsonArray("ids").map { UUID.fromString(it.toString()) }
+            itemsService.restoreItems(
+                ids = ids,
+                userId = user.id
+            )
+                .onSuccess { result ->
+                    syncEventsService.saveEvent(
+                        itemChanges = result.map {
+                            Pair(
+                                it.itemId,
+                                it.itemType
+                            )
+                        },
+                        eventType = SyncEventType.RESTORE,
+                        bitMask = user.deviceBitMask,
+                        userId = user.id,
+                    ).onComplete {
+                        val jsonArray = JsonArray()
+                        result.forEach {
+                            jsonArray.add(
+                                JsonObject()
+                                    .put("item_id", it.itemId.toString())
+                                    .put("parent_id", it.parentId?.toString())
+                            )
+                        }
+                        context.response().putHeader("Content-Type", "application/json").setStatusCode(200)
+                            .end(jsonArray.toString())
+                    }
+                }
+                .onFailure { throwable ->
+                    throwable.printStackTrace()
+                    // TODO: Implement onFailure block for POST /items/:id/restore
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
+
     patch("/items/:id/move").handler { context ->
         context.withAuth(authService) { user ->
             val json = context.body().asJsonObject()
@@ -170,6 +212,40 @@ fun Router.mountItemsRouter(
         }
     }
 
+    post("/items/move").handler { context ->
+        context.withAuth(authService) { user ->
+            val body = context.body().asJsonObject()
+            val ids = body.getJsonArray("ids").map { UUID.fromString(it.toString()) }
+            itemsService.moveItems(
+                ids = ids,
+                parentId = body.getValue("parent_id").let {
+                    if (it is String && it.trim().isNotEmpty()) {
+                        UUID.fromString(it)
+                    } else {
+                        null
+                    }
+                },
+                userId = user.id
+            )
+                .onSuccess { result ->
+                    syncEventsService.saveEvent(
+                        itemChanges = result,
+                        eventType = SyncEventType.MOVE,
+                        bitMask = user.deviceBitMask,
+                        userId = user.id,
+                    ).onComplete {
+                        context.success()
+                    }
+                }
+                .onFailure { throwable ->
+                    throwable.printStackTrace()
+                    // TODO: Implement onFailure block for POST /items/move
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
+
 
     delete("/items/:id").handler { context ->
         context.withAuth(authService) { user ->
@@ -196,6 +272,31 @@ fun Router.mountItemsRouter(
         }
     }
 
+    post("/items/trash").handler { context ->
+        context.withAuth(authService) { user ->
+            val body = context.body().asJsonObject()
+            val ids = body.getJsonArray("ids").map { UUID.fromString(it.toString()) }
+            itemsService.softDeleteItems(
+                ids = ids,
+                userId = user.id
+            ).onSuccess { result ->
+                syncEventsService.saveEvent(
+                    itemChanges = result,
+                    eventType = SyncEventType.SOFT_DELETE,
+                    bitMask = user.deviceBitMask,
+                    userId = user.id,
+                ).onComplete { d , t ->
+                    context.success()
+                }
+            }
+                .onFailure { throwable ->
+                    // TODO: Implement onFailure block for POST /items/trash
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
+
     delete("/items/:id/permanent").handler { context ->
         context.withAuth(authService) { user ->
             val itemId = UUID.fromString(context.pathParam("id"))
@@ -215,6 +316,32 @@ fun Router.mountItemsRouter(
             }
                 .onFailure { throwable ->
                     // TODO: Implement onFailure block for DELETE /items/:id/permanent
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
+
+    post("/items/permanent-delete").handler { context ->
+        context.withAuth(authService) { user ->
+            val body = context.body().asJsonObject()
+            val ids = body.getJsonArray("ids").map { UUID.fromString(it.toString()) }
+            itemsService.deleteItems(
+                ids = ids,
+                userId = user.id
+            ).onSuccess { result ->
+                println(result.size)
+                syncEventsService.saveEvent(
+                    itemChanges = result,
+                    eventType = SyncEventType.DELETE,
+                    bitMask = user.deviceBitMask,
+                    userId = user.id,
+                ).onComplete { d, t->
+                    context.success()
+                }
+            }
+                .onFailure { throwable ->
+                    // TODO: Implement onFailure block for POST /items/:id/permanent-delete
                     context.response().putHeader("content-type", "text/plain")
                         .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
                 }

@@ -6,13 +6,15 @@
 
 package com.amqhi.services
 
-import com.amqhi.common.updateItem
 import com.amqhi.models.Item
 import com.amqhi.models.ItemAttributes
 import com.amqhi.models.ItemCore
 import com.amqhi.models.ItemType
 import io.vertx.core.Future
 import io.vertx.sqlclient.Pool
+import io.vertx.sqlclient.PreparedQuery
+import io.vertx.sqlclient.Row
+import io.vertx.sqlclient.RowSet
 import io.vertx.sqlclient.Tuple
 import java.time.Duration
 import java.util.*
@@ -60,7 +62,6 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
         return storageService.getObjectMetadata("$userId/$itemId/thumbnail")
             .onFailure {
                 storageService.getObjectMetadata("$userId/$itemId/original").compose { metadata ->
-                    println(metadata)
                     if(metadata.mimeType != null && (metadata.mimeType.startsWith("video/") || metadata.mimeType.startsWith("image/"))) {
                         val originalTempPath = Path("tmp", userId, itemId, "original.${metadata.mimeType.split("/").last()}")
                         val thumbnailTempPath = Path("tmp", userId, itemId, "thumbnail.jpg")
@@ -114,11 +115,12 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
     }
 
     data class RestoreItemResult(
+        val itemId: UUID,
         val parentId: UUID?,
         val itemType: ItemType
     )
 
-    fun restoreItem(id: UUID, userId: UUID) : Future<RestoreItemResult> {
+    private fun restoreItemQuery(): PreparedQuery<RowSet<Row>> {
         return pool.preparedQuery("""
             UPDATE "items" AS i
             SET 
@@ -132,24 +134,83 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
                     ELSE i."parent_id"
                 END
             WHERE i."id" = $1 AND i."user_id" = $2
-            RETURNING "parent_id", "type"
+            RETURNING "id", "parent_id", "type"
         """.trimIndent())
+    }
+
+    fun restoreItem(id: UUID, userId: UUID) : Future<RestoreItemResult> {
+        return restoreItemQuery()
             .execute(Tuple.of(id, userId))
             .map {
                 RestoreItemResult(
+                    itemId = it.first().getUUID("id"),
                     parentId = it.firstOrNull()?.getValue("parent_id") as? UUID,
                     itemType = ItemType.valueOf(it.first().getString("type").uppercase())
                 )
             }
     }
 
-    fun softDeleteItem(id: UUID, userId: UUID): Future<ItemType> {
+    fun restoreItems(ids: List<UUID>, userId: UUID) : Future<List<RestoreItemResult>> {
+        return restoreItemQuery()
+            .executeBatch(ids.map { itemId ->
+                Tuple.of(itemId, userId)
+            })
+            .map { initialRowSet ->
+                val result = mutableListOf<RestoreItemResult>()
+                var currentRowSet: RowSet<Row>? = initialRowSet
+
+                while (currentRowSet != null) {
+                    for (row in currentRowSet) {
+                        result.add(
+                            RestoreItemResult(
+                                itemId = row.getUUID("id"),
+                                parentId = row.getValue("parent_id") as? UUID,
+                                itemType = ItemType.valueOf(row.getString("type").uppercase())
+                            )
+                        )
+                    }
+                    currentRowSet = currentRowSet.next()
+                }
+                result
+            }
+
+    }
+
+
+    private fun softDeleteItemQuery() : PreparedQuery<RowSet<Row>> {
         return pool.preparedQuery("""
             UPDATE "items" SET "deleted_at" = NOW() WHERE "id" = $1 AND "user_id" = $2
-            RETURNING "type"
+            RETURNING "id", "type"
         """.trimIndent())
+    }
+
+    fun softDeleteItem(id: UUID, userId: UUID): Future<ItemType> {
+        return softDeleteItemQuery()
             .execute(Tuple.of(id, userId)).map {
                 ItemType.valueOf(it.first().getString("type").uppercase())
+            }
+    }
+
+    fun softDeleteItems(ids: List<UUID>, userId: UUID): Future<List<Pair<UUID, ItemType>>> {
+        return softDeleteItemQuery()
+            .executeBatch(ids.map { id ->
+                Tuple.of(id, userId)
+            }).map { initialRowSet ->
+                val result = mutableListOf<Pair<UUID, ItemType>>()
+                var currentRowSet: RowSet<Row>? = initialRowSet
+
+                while (currentRowSet != null) {
+                    for (row in currentRowSet) {
+                        result.add(
+                            Pair(
+                                row.getUUID("id"),
+                                ItemType.valueOf(row.getString("type").uppercase())
+                            )
+                        )
+                    }
+                    currentRowSet = currentRowSet.next()
+                }
+                result
             }
     }
 
@@ -181,13 +242,53 @@ class ItemsService(private val pool: Pool, private val storageService: StorageSe
             }
     }
 
-    fun moveItem(id: UUID, userId: UUID, parentId: UUID?): Future<ItemType> {
+    fun deleteItems(ids: List<UUID>, userId: UUID): Future<List<Pair<UUID, ItemType>>> {
+        val futures = ids.map { itemId ->
+                deleteItem(itemId, userId)
+                    .map { type -> Pair(itemId, type) }
+                    .recover { Future.succeededFuture(null) }
+            }
+
+        return Future.all<Future<List<Pair<UUID, ItemType>>>>(futures).map { composite ->
+            (0 until composite.size()).mapNotNull { i ->
+                composite.resultAt<Pair<UUID, ItemType>?>(i)
+            }
+        }
+    }
+
+    private fun moveItemQuery() : PreparedQuery<RowSet<Row>> {
         return pool.preparedQuery("""
             UPDATE "items" SET "parent_id" = $1 WHERE "id" = $2 AND "user_id" = $3
-            RETURNING "type"
+            RETURNING "type", "id"
         """.trimIndent())
+    }
+    fun moveItem(id: UUID, userId: UUID, parentId: UUID?): Future<ItemType> {
+        return moveItemQuery()
             .execute(Tuple.of(parentId, id, userId)).map{
                 ItemType.valueOf(it.first().getString("type").uppercase())
             }
+    }
+
+    fun moveItems(ids: List<UUID>, userId: UUID, parentId: UUID?): Future<List<Pair<UUID, ItemType>>> {
+        return moveItemQuery()
+            .executeBatch(ids.map { id ->
+                Tuple.of(parentId, id, userId)
+            }).map { initialRowSet ->
+            val result = mutableListOf<Pair<UUID, ItemType>>()
+            var currentRowSet: RowSet<Row>? = initialRowSet
+
+            while (currentRowSet != null) {
+                for (row in currentRowSet) {
+                    result.add(
+                        Pair(
+                            row.getUUID("id"),
+                            ItemType.valueOf(row.getString("type").uppercase())
+                        )
+                    )
+                }
+                currentRowSet = currentRowSet.next()
+            }
+            result
+        }
     }
 }

@@ -60,6 +60,95 @@ fun getTestSyncEvents(client: HttpClient, baseUrl: String, accessToken: String):
     return TestSyncEventsResponse.fromJson(JsonObject(response.body()))
 }
 
+data class TestRestoreItemResult(
+    val itemId: UUID,
+    val parentId: UUID?
+) {
+    companion object {
+        fun fromJson(jsonObject: JsonObject): TestRestoreItemResult {
+            return TestRestoreItemResult(
+                itemId = UUID.fromString(jsonObject.getString("item_id")),
+                parentId = jsonObject.getString("parent_id")?.let { UUID.fromString(it) }
+            )
+        }
+    }
+}
+
+fun restoreTestItems(client: HttpClient, baseUrl: String, itemIds: Array<UUID>, accessToken: String): List<TestRestoreItemResult> {
+    val itemIdsJsonArray = JsonArray()
+    itemIds.forEach { id ->
+        itemIdsJsonArray.add(id.toString())
+    }
+    val request = HttpRequest.newBuilder()
+        .uri(URI.create("$baseUrl/items/restore"))
+        .headers("Authorization", "Bearer $accessToken", "Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(JsonObject()
+            .put("ids", itemIdsJsonArray)
+            .toString()))
+        .build()
+
+    val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+
+    assert(response.statusCode() == 200)
+
+    return JsonArray(response.body()).map { TestRestoreItemResult.fromJson(it as JsonObject) }
+}
+
+fun trashTestItems(client: HttpClient, baseUrl: String, itemIds: Array<UUID>, accessToken: String) {
+    val itemIdsJsonArray = JsonArray()
+    itemIds.forEach { id ->
+        itemIdsJsonArray.add(id.toString())
+    }
+    val request = HttpRequest.newBuilder()
+        .uri(URI.create("$baseUrl/items/trash"))
+        .headers("Authorization", "Bearer $accessToken", "Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(JsonObject()
+            .put("ids", itemIdsJsonArray)
+            .toString()))
+        .build()
+
+    val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+
+    assert(response.statusCode() == 200)
+}
+
+fun permanentDeleteTestItems(client: HttpClient, baseUrl: String, itemIds: Array<UUID>, accessToken: String) {
+    val itemIdsJsonArray = JsonArray()
+    itemIds.forEach { id ->
+        itemIdsJsonArray.add(id.toString())
+    }
+    val request = HttpRequest.newBuilder()
+        .uri(URI.create("$baseUrl/items/permanent-delete"))
+        .headers("Authorization", "Bearer $accessToken", "Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(JsonObject()
+            .put("ids", itemIdsJsonArray)
+            .toString()))
+        .build()
+
+    val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+
+    assert(response.statusCode() == 200)
+}
+
+fun moveTestItems(client: HttpClient, baseUrl: String, itemIds: Array<UUID>, parentId: UUID?, accessToken: String) {
+    val itemIdsJsonArray = JsonArray()
+    itemIds.forEach { id ->
+        itemIdsJsonArray.add(id.toString())
+    }
+    val request = HttpRequest.newBuilder()
+        .uri(URI.create("$baseUrl/items/move"))
+        .headers("Authorization", "Bearer $accessToken", "Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(JsonObject()
+            .put("ids", itemIdsJsonArray)
+            .put("parent_id", parentId?.toString())
+            .toString()))
+        .build()
+
+    val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+
+    assert(response.statusCode() == 200)
+}
+
 fun acknowledgeTestSyncEvents(client: HttpClient, baseUrl: String, itemIds: Array<UUID>, accessToken: String) {
     val itemIdsJsonArray = JsonArray()
     itemIds.forEach { id ->

@@ -23,6 +23,7 @@ CREATE TYPE "sync_event_type" as ENUM (
     'update',
     'move',
     'soft_delete',
+    'restore',
     'delete'
 );
 

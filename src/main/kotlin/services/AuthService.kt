@@ -268,12 +268,12 @@ class AuthService(
         val token = jwtAuth.generateToken(
             claims,
             JWTOptions()
-                .setExpiresInSeconds(3600)
+                .setExpiresInSeconds(600)
                 .setIssuer("Amqhi")
         )
         return AccessToken(
             token,
-            3600
+            600
         )
     }
 

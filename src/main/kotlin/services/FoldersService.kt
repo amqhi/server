@@ -65,7 +65,6 @@ class FoldersService(private val pool: Pool) {
                  """.trimIndent())
             .execute(Tuple.of(userId, ItemType.FOLDER.toString().lowercase(), itemAttributes.eventAt,itemAttributes.parentId, itemAttributes.name, itemAttributes.comment, itemAttributes.encrypted, itemAttributes.appScope, folderAttributes.backgroundId, folderAttributes.backgroundColor?.value, folderAttributes.iconId, folderAttributes.iconColor?.value))
             .map { rows ->
-                println(rows.first().toJson())
                 Folder.from(rows.first())
             }
     }

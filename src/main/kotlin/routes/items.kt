@@ -161,7 +161,7 @@ fun Router.mountItemsRouter(
                         result.forEach {
                             jsonArray.add(
                                 JsonObject()
-                                    .put("item_id", it.itemId.toString())
+                                    .put("id", it.itemId.toString())
                                     .put("parent_id", it.parentId?.toString())
                             )
                         }

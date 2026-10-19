@@ -277,6 +277,32 @@ class AuthService(
         )
     }
 
+    private fun refreshedTokenPair(userId: UUID, refreshTokenId: String, deviceId: UUID, deviceBitMask: Int, refreshToken: AuthToken) : Future<TokenPair> {
+        return pool.preparedQuery(
+            """
+            SELECT id, email, name FROM "users" WHERE id = $1
+        """.trimIndent()
+        ).execute(Tuple.of(userId))
+            .map { rows ->
+                if (!rows.any()) {
+                    // TODO: Use domain specific exception
+                    throw NoSuchElementException()
+                }
+                val row = rows.first()
+                TokenPair(
+                    refreshToken = refreshToken,
+                    accessToken = generatedAccessToken(
+                        userId = row.getUUID("id"),
+                        name = row.getString("name"),
+                        email = row.getString("email"),
+                        refreshTokenId = refreshTokenId,
+                        deviceId = deviceId,
+                        deviceBitMask = deviceBitMask
+                    )
+                )
+            }
+    }
+
     fun refreshToken(refreshToken: String, ipAddress: String?): Future<TokenPair> {
         val hashedToken = MessageDigest.getInstance("SHA-256")
             .digest(refreshToken.toByteArray())
@@ -285,15 +311,16 @@ class AuthService(
         return pool.preparedQuery(
             """
             SELECT 
+                t.id,
                 t.user_id,
                 t.device_id,
+                t.expires_at,
                 d.bit_mask
             FROM "tokens" t
             JOIN "user_devices" d 
               ON d.id = t.device_id 
              AND d.user_id = t.user_id
             WHERE t.value = $1 
-              AND t.expires_at > NOW() 
               AND t.revoked_at IS NULL;
         """.trimIndent()
         ).execute(Tuple.of(hashedToken)).compose { rows ->
@@ -301,54 +328,59 @@ class AuthService(
                 // TODO: Use domain specific exception
                 return@compose Future.failedFuture(Exception())
             }
+            val refreshTokenId = rows.first().getUUID("id")
             val deviceBitMask = rows.first().getInteger("bit_mask")
             val deviceId = rows.first().getUUID("device_id")
+            val refreshTokenExpiresAt = rows.first().getOffsetDateTime("expires_at")
             val userId = rows.first().getUUID("user_id")
-            pool.preparedQuery(
-                """
+
+            if(refreshTokenExpiresAt.isBefore(OffsetDateTime.now().plusHours(6))) {
+                pool.preparedQuery(
+                    """
             UPDATE "tokens" 
             SET revoked_at = NOW() 
             WHERE value = $1 AND user_id = $2 AND revoked_at IS NULL
             RETURNING "id"
         """.trimIndent()
-            )
-                .execute(Tuple.of(hashedToken, userId))
-                .compose { rows ->
-                    if (!rows.any()) {
-                        // TODO: Use domain specific exception
-                        throw NoSuchElementException()
-                    }
+                )
+                    .execute(Tuple.of(hashedToken, userId))
+                    .compose { rows ->
+                        if (!rows.any()) {
+                            // TODO: Use domain specific exception
+                            throw NoSuchElementException()
+                        }
 
-                    generatedRefreshToken(
+                        generatedRefreshToken(
+                            userId = userId,
+                            deviceId = deviceId,
+                            ipAddress = ipAddress
+                        )
+                    }.compose { refreshToken ->
+                        refreshedTokenPair(
+                            userId = userId,
+                            refreshTokenId = refreshToken.id.toString(),
+                            deviceId = deviceId,
+                            deviceBitMask = deviceBitMask,
+                            refreshToken = refreshToken
+                        )
+                    }
+            }
+            else {
+                refreshedTokenPair(
+                    userId = userId,
+                    refreshTokenId = refreshTokenId.toString(),
+                    deviceId = deviceId,
+                    deviceBitMask = deviceBitMask,
+                    refreshToken = AuthToken(
+                        id = refreshTokenId,
                         userId = userId,
                         deviceId = deviceId,
+                        value = refreshToken,
+                        expiresAt = refreshTokenExpiresAt,
                         ipAddress = ipAddress
                     )
-                }.compose { refreshToken ->
-                    pool.preparedQuery(
-                        """
-            SELECT id, email, name FROM "users" WHERE id = $1
-        """.trimIndent()
-                    ).execute(Tuple.of(userId))
-                        .map { rows ->
-                            if (!rows.any()) {
-                                // TODO: Use domain specific exception
-                                throw NoSuchElementException()
-                            }
-                            val row = rows.first()
-                            TokenPair(
-                                refreshToken = refreshToken,
-                                accessToken = generatedAccessToken(
-                                    userId = row.getUUID("id"),
-                                    name = row.getString("name"),
-                                    email = row.getString("email"),
-                                    refreshTokenId = refreshToken.id.toString(),
-                                    deviceId = deviceId,
-                                    deviceBitMask = deviceBitMask
-                                )
-                            )
-                        }
-                }
+                )
+            }
         }
     }
 

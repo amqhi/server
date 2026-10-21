@@ -21,7 +21,7 @@ import java.util.UUID
 class FileSyncTest {
 
         @Test
-        fun test1() {
+        fun `image file should produce correct sync event counts across sessions`() {
             LogConfig.setup()
             val vertx = Vertx.vertx()
             vertx.deployVerticle(App()).await()

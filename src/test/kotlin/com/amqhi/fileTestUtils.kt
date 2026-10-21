@@ -10,9 +10,9 @@ import com.amqhi.models.FileItem
 import com.amqhi.models.ItemAttributes
 import com.amqhi.models.appScopeToJsonArray
 import io.vertx.core.json.Json
-import io.vertx.core.json.JsonArray
 import io.vertx.core.json.JsonObject
 import java.io.File
+import java.io.RandomAccessFile
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -64,7 +64,7 @@ fun createTestFile(client: HttpClient, baseUrl: String, accessToken: String, att
 
     val item = testItemFromJsonObject(responseBody.getJsonObject("item"))
 
-    var parts: JsonArray? = null
+    var parts: List<Map<String, Any>>? = null
     var uploadId: String? = null
 
     // Upload the file to object storage
@@ -80,7 +80,32 @@ fun createTestFile(client: HttpClient, baseUrl: String, accessToken: String, att
         assert(fileUploadResponse.statusCode() == 200)
     }
     else {
-
+        uploadId = upload.getString("upload_id")
+        val uploadedParts = mutableListOf<Map<String, Any>>()
+        val uploadParts = upload.getJsonArray("parts")
+        for (i in 0 until uploadParts.size()) {
+            val part = uploadParts.getJsonObject(i)
+            val startOffset = part.getLong("start_offset")
+            val partSize = part.getLong("size").toInt()
+            val partBytes = ByteArray(partSize)
+            RandomAccessFile(file, "r").use { randomAccessFile ->
+                randomAccessFile.seek(startOffset)
+                randomAccessFile.readFully(partBytes)
+            }
+            val partUploadRequest = HttpRequest.newBuilder()
+                .uri(URI.create(part.getString("url")))
+                .PUT(HttpRequest.BodyPublishers.ofByteArray(partBytes))
+                .build()
+            val partUploadResponse = client.send(partUploadRequest, HttpResponse.BodyHandlers.ofString())
+            assert(partUploadResponse.statusCode() == 200)
+            uploadedParts.add(
+                mapOf(
+                    "part_number" to part.getInteger("part_number"),
+                    "etag" to partUploadResponse.headers().firstValue("etag").get()
+                )
+            )
+        }
+        parts = uploadedParts
     }
     val uploadCompletionBody = mapOf(
         "checksum" to fileChecksum,

@@ -28,63 +28,80 @@ class FilesService(private val pool: Pool, private val storageService: StorageSe
      * */
     fun createFile(userId: UUID, itemAttributes: ItemAttributes, mimeType: String, size: Long) : Future<Pair<Item, JsonObject>> {
         return pool.preparedQuery("""
-            INSERT INTO items(user_id, type, created_at, updated_at, event_at, parent_id, name, comment, encrypted, app_scope) VALUES ($1, $2, NOW(), NOW(), $3, $4, $5, $6, $7, $8)
-                 RETURNING *
+                 INSERT INTO items (
+                     user_id, type, created_at, updated_at, event_at,
+                     parent_id, name, comment, encrypted, app_scope
+                 )
+                 VALUES ($1, $2, NOW(), NOW(), $3, $4, $5, $6, $7, $8)
+                 ON CONFLICT (user_id, COALESCE(parent_id, '00000000-0000-0000-0000-000000000000'), name) WHERE deleted_at IS NULL
+                    DO UPDATE SET
+                    created_at = NOW(),
+                    updated_at = NOW(),
+                    event_at = EXCLUDED.event_at,
+                    comment = EXCLUDED.comment,
+                    encrypted = EXCLUDED.encrypted,
+                    app_scope = EXCLUDED.app_scope
+                 WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM files f
+                        WHERE f.id = items.id
+                 )
+                 RETURNING *;
                  """.trimIndent())
-            .execute(Tuple.of(userId, ItemType.FILE.toString().lowercase(), itemAttributes.eventAt,itemAttributes.parentId, itemAttributes.name, itemAttributes.comment, itemAttributes.encrypted, itemAttributes.appScope))
-            .compose { rows ->
-                if(!rows.any()) {
-                    // TODO: Replace with domain exception
-                    return@compose Future.failedFuture(Exception())
-                }
-                val item = Item.from(rows.first())
-                val key = "${userId}/${item.id}/original"
+                 .execute(Tuple.of(userId, ItemType.FILE.toString().lowercase(), itemAttributes.eventAt,itemAttributes.parentId, itemAttributes.name, itemAttributes.comment, itemAttributes.encrypted, itemAttributes.appScope))
+                 .compose { rows ->
+                     if(!rows.any()) {
+                         // TODO: Replace with domain exception
+                         return@compose Future.failedFuture(Exception())
+                     }
+                     val item = Item.from(rows.first())
+                     val key = "${userId}/${item.id}/original"
 
-                // TODO: Make single vs. multipart upload threshold configurable
-                if(size <= FIVE_MB) {
-                    storageService.getUploadUrl(
-                        key = key,
-                        contentType = mimeType,
-                        duration = Duration.ofMinutes(5),
-                        contentLength = size
-                    ).map { url ->
-                        Pair(
-                            item,
-                            JsonObject()
-                                .put("type", "single")
-                                .put("url", url)
-                        )
-                    }
-                }
-                else {
-                    storageService.initiateMultipartUpload(key, mimeType).compose { uploadId ->
-                        val chunkCount = ceil(size.toDouble() / FIVE_MB).toInt()
+                     // TODO: Make single vs. multipart upload threshold configurable
+                     if(size <= FIVE_MB) {
+                         storageService.getUploadUrl(
+                             key = key,
+                             contentType = mimeType,
+                             duration = Duration.ofMinutes(5),
+                             contentLength = size
+                         ).map { url ->
+                             Pair(
+                                 item,
+                                 JsonObject()
+                                     .put("type", "single")
+                                     .put("url", url)
+                             )
+                         }
+                     }
+                     else {
+                         storageService.initiateMultipartUpload(key, mimeType).compose { uploadId ->
+                             val chunkCount = ceil(size.toDouble() / FIVE_MB).toInt()
 
-                        val futures: List<Future<PresignedPart>> = (1..chunkCount).map { partNum ->
-                            storageService.getUploadPartUrl(key, uploadId, partNum, Duration.ofMinutes(15), size)
-                        }
+                             val futures: List<Future<PresignedPart>> = (1..chunkCount).map { partNum ->
+                                 storageService.getUploadPartUrl(key, uploadId, partNum, Duration.ofMinutes(15), size)
+                             }
 
-                        Future.all<Future<PresignedPart>>(futures).map { compositeResult ->
-                            val parts = compositeResult.list<PresignedPart>().sortedBy { it.partNumber }
-                            val jsonArray = JsonArray()
-                            parts.forEach { part ->
-                                jsonArray.add(JsonObject()
-                                    .put("part_number", part.partNumber)
-                                    .put("url", part.url)
-                                    .put("start_offset", part.startOffset)
-                                    .put("size", part.size))
-                            }
-                            Pair(
-                                item,
-                                JsonObject()
-                                    .put("type", "multipart")
-                                    .put("upload_id", uploadId)
-                                    .put("parts", jsonArray)
-                            )
-                        }
-                    }
-                }
-            }
+                             Future.all<Future<PresignedPart>>(futures).map { compositeResult ->
+                                 val parts = compositeResult.list<PresignedPart>().sortedBy { it.partNumber }
+                                 val jsonArray = JsonArray()
+                                 parts.forEach { part ->
+                                     jsonArray.add(JsonObject()
+                                         .put("part_number", part.partNumber)
+                                         .put("url", part.url)
+                                         .put("start_offset", part.startOffset)
+                                         .put("size", part.size))
+                                 }
+                                 Pair(
+                                     item,
+                                     JsonObject()
+                                         .put("type", "multipart")
+                                         .put("upload_id", uploadId)
+                                         .put("parts", jsonArray)
+                                 )
+                             }
+                         }
+                     }
+                 }
     }
 
     fun getFiles(userId: UUID) : Future<List<FileItem>> {

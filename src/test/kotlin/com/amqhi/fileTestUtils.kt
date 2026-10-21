@@ -21,7 +21,7 @@ import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.UUID
 
-private fun getFileChecksum(file: File): String {
+fun getFileChecksum(file: File): String {
     val digest = MessageDigest.getInstance("SHA-256")
 
     file.inputStream().use { inputStream ->

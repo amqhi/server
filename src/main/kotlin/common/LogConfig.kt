@@ -35,12 +35,12 @@ object LogConfig {
 
         val fileAppender = RollingFileAppender<ILoggingEvent>().apply appender@{
             this.context = context
-            file = "server.log"
+            file = "${System.getenv("LOG_DIR") ?: "./logs"}/server.log"
 
             val rollingPolicy = TimeBasedRollingPolicy<ILoggingEvent>().apply {
                 this.context = context
                 this.setParent(this@appender)
-                fileNamePattern = "server.%d{yyyy-MM-dd}.log.gz"
+                fileNamePattern = "${System.getenv("LOG_DIR") ?: "./logs"}/server.%d{yyyy-MM-dd}.log.gz"
                 maxHistory = 30
                 start()
             }

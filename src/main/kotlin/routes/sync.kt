@@ -70,4 +70,21 @@ fun Router.mountSyncRouter(authService: AuthService, syncEventsService: SyncEven
                 }
         }
     }
+
+    post("/sync/events/acknowledge/all").handler { context ->
+        context.withAuth(authService) { user ->
+            syncEventsService.acknowledgeAll(
+                bitMask = user.deviceBitMask,
+                userId = user.id
+            ).onSuccess {
+                context.success()
+            }
+                .onFailure {
+                    it.printStackTrace()
+                    // TODO: Implement onFailure block for POST /sync/events/acknowledge/all
+                    context.response().putHeader("content-type", "text/plain")
+                        .setStatusCode(HttpResponseStatus.INTERNAL_SERVER_ERROR.code()).end("OMG")
+                }
+        }
+    }
 }

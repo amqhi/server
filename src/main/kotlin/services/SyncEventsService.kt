@@ -386,4 +386,21 @@ class SyncEventsService(private val pool: Pool) {
                     .mapEmpty()
             }
     }
+
+    fun acknowledgeAll(bitMask: Int, userId: UUID): Future<Unit> {
+        return pool.preparedQuery("""
+                  WITH target AS (
+                    SELECT COALESCE(SUM(bit_mask), 0) AS mask 
+                    FROM user_devices 
+                    WHERE user_id = $2
+                )
+                UPDATE sync_events 
+                SET synced_devices = synced_devices | $1 
+                FROM target
+                WHERE user_id = $2
+                RETURNING target.mask AS target_mask;
+            """.trimIndent())
+            .execute(Tuple.of(bitMask,userId))
+            .mapEmpty()
+    }
 }

@@ -28,7 +28,7 @@ import io.vertx.ext.web.handler.CorsHandler
 import io.vertx.pgclient.PgConnectOptions
 import io.vertx.sqlclient.PoolOptions
 
-const val VERSION = "0.0.0"
+const val VERSION = "0.1.0-alpha.20261031"
 val logger: Logger? = LoggerFactory.getLogger(App::class.java)
 
 class App : AbstractVerticle() {

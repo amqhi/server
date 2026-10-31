@@ -129,8 +129,15 @@ class App : AbstractVerticle() {
             )
         )
 
-        // TODO: Delete obsolete tokens
-        databaseProvider.pool.preparedQuery("DELETE FROM tokens WHERE revoked_at IS NOT NULL").execute()
+        cleanupObsoleteResources(
+            authService = authService
+        )
+        // 86_400_000 ms = 1 day
+        vertx.setPeriodic(86_400_000, {
+            cleanupObsoleteResources(
+                authService = authService
+            )
+        })
 
         vertx.createHttpServer().requestHandler(router).listen(System.getenv("PORT")?.toInt() ?: 8000).onSuccess {
             println("listening on http://localhost:${System.getenv("PORT")?.toInt() ?: 8000}")

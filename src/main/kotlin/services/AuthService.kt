@@ -505,4 +505,25 @@ class AuthService(
             }
         }
     }
+
+    fun deleteObsoleteTokens() : Future<Void> {
+        return pool.preparedQuery("""
+            DELETE FROM "tokens"
+            WHERE ("revoked_at" IS NOT NULL AND "revoked_at" < NOW() - INTERVAL '7 days')
+               OR ("revoked_at" IS NULL AND "expires_at" < NOW())
+        """.trimIndent())
+            .execute()
+            .mapEmpty()
+    }
+
+    fun deleteObsoleteUserDevices() : Future<Void> {
+        return pool.preparedQuery("""
+                DELETE FROM "user_devices" AS d
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM "tokens" AS t WHERE t.device_id = d.id
+                )
+        """.trimIndent())
+            .execute()
+            .mapEmpty()
+    }
 }

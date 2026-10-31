@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.amqhi"
-version = "1.0.0"
+version = "0.1.0-alpha.20261031"
 
 repositories {
     mavenCentral()
